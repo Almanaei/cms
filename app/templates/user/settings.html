@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <!-- Settings Navigation -->
+        <div class="col-md-3">
+            <div class="list-group">
+                <a href="#profile" class="list-group-item list-group-item-action active" data-bs-toggle="list">
+                    <i class="fas fa-user"></i> Profile Settings
+                </a>
+                <a href="#account" class="list-group-item list-group-item-action" data-bs-toggle="list">
+                    <i class="fas fa-shield-alt"></i> Account Security
+                </a>
+                <a href="#notifications" class="list-group-item list-group-item-action" data-bs-toggle="list">
+                    <i class="fas fa-bell"></i> Notifications
+                </a>
+                <a href="#privacy" class="list-group-item list-group-item-action" data-bs-toggle="list">
+                    <i class="fas fa-lock"></i> Privacy
+                </a>
+                <a href="#social" class="list-group-item list-group-item-action" data-bs-toggle="list">
+                    <i class="fas fa-share-alt"></i> Social Accounts
+                </a>
+                <a href="#appearance" class="list-group-item list-group-item-action" data-bs-toggle="list">
+                    <i class="fas fa-paint-brush"></i> Appearance
+                </a>
+            </div>
+        </div>
+
+        <!-- Settings Content -->
+        <div class="col-md-9">
+            <div class="tab-content">
+                <!-- Profile Settings -->
+                <div class="tab-pane fade show active" id="profile">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Profile Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" action="{{ url_for('user.update_profile') }}" enctype="multipart/form-data">
+                                {{ profile_form.hidden_tag() }}
+                                
+                                <!-- Avatar -->
+                                <div class="mb-3">
+                                    <label class="form-label">Profile Picture</label>
+                                    <div class="d-flex align-items-center">
+                                        <img src="{{ current_user.avatar_url or url_for('static', filename='img/default-avatar.png') }}"
+                                             class="rounded-circle me-3" style="width: 100px; height: 100px; object-fit: cover;"
+                                             alt="Current avatar">
+                                        {{ profile_form.avatar(class="form-control") }}
+                                    </div>
+                                </div>
+
+                                <!-- Basic Info -->
+                                <div class="mb-3">
+                                    <label class="form-label">Username</label>
+                                    {{ profile_form.username(class="form-control") }}
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Email</label>
+                                    {{ profile_form.email(class="form-control") }}
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Bio</label>
+                                    {{ profile_form.bio(class="form-control", rows="4") }}
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Location</label>
+                                    {{ profile_form.location(class="form-control") }}
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Website</label>
+                                    {{ profile_form.website(class="form-control") }}
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save Changes
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Account Security -->
+                <div class="tab-pane fade" id="account">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Account Security</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Change Password -->
+                            <form method="POST" action="{{ url_for('user.change_password') }}">
+                                {{ password_form.hidden_tag() }}
+                                <h6 class="mb-3">Change Password</h6>
+                                <div class="mb-3">
+                                    <label class="form-label">Current Password</label>
+                                    {{ password_form.current_password(class="form-control") }}
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">New Password</label>
+                                    {{ password_form.new_password(class="form-control") }}
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Confirm New Password</label>
+                                    {{ password_form.confirm_password(class="form-control") }}
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-key"></i> Change Password
+                                </button>
+                            </form>
+
+                            <hr>
+
+                            <!-- Two-Factor Authentication -->
+                            <h6 class="mb-3">Two-Factor Authentication</h6>
+                            {% if current_user.two_factor_enabled %}
+                            <p class="text-success">
+                                <i class="fas fa-check-circle"></i> Two-factor authentication is enabled
+                            </p>
+                            <form method="POST" action="{{ url_for('user.disable_2fa') }}">
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="fas fa-times"></i> Disable 2FA
+                                </button>
+                            </form>
+                            {% else %}
+                            <p class="text-warning">
+                                <i class="fas fa-exclamation-circle"></i> Two-factor authentication is not enabled
+                            </p>
+                            <a href="{{ url_for('user.enable_2fa') }}" class="btn btn-success">
+                                <i class="fas fa-shield-alt"></i> Enable 2FA
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Privacy Settings -->
+                <div class="tab-pane fade" id="privacy">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Privacy Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" action="{{ url_for('user.update_privacy') }}">
+                                {{ privacy_form.hidden_tag() }}
+                                <div class="mb-3">
+                                    <label class="form-label">Profile Visibility</label>
+                                    {{ privacy_form.profile_visibility(class="form-select") }}
+                                </div>
+                                <div class="form-check mb-3">
+                                    {{ privacy_form.show_email(class="form-check-input") }}
+                                    <label class="form-check-label">Show email to other users</label>
+                                </div>
+                                <div class="form-check mb-3">
+                                    {{ privacy_form.show_location(class="form-check-input") }}
+                                    <label class="form-check-label">Show location on profile</label>
+                                </div>
+                                <div class="form-check mb-3">
+                                    {{ privacy_form.allow_messages(class="form-check-input") }}
+                                    <label class="form-check-label">Allow direct messages</label>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save Privacy Settings
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Social Accounts -->
+                <div class="tab-pane fade" id="social">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Connected Social Accounts</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Google -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <i class="fab fa-google fa-lg me-2"></i>
+                                    Google
+                                    {% if google_account %}
+                                    <span class="text-success ms-2">
+                                        <i class="fas fa-check-circle"></i> Connected
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% if google_account %}
+                                <form method="POST" action="{{ url_for('user.disconnect_social', provider='google') }}"
+                                      style="display: inline;">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                        Disconnect
+                                    </button>
+                                </form>
+                                {% else %}
+                                <a href="{{ url_for('social.google_login') }}" class="btn btn-outline-primary btn-sm">
+                                    Connect
+                                </a>
+                                {% endif %}
+                            </div>
+
+                            <!-- Facebook -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <i class="fab fa-facebook fa-lg me-2"></i>
+                                    Facebook
+                                    {% if facebook_account %}
+                                    <span class="text-success ms-2">
+                                        <i class="fas fa-check-circle"></i> Connected
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% if facebook_account %}
+                                <form method="POST" action="{{ url_for('user.disconnect_social', provider='facebook') }}"
+                                      style="display: inline;">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                        Disconnect
+                                    </button>
+                                </form>
+                                {% else %}
+                                <a href="{{ url_for('social.facebook_login') }}" class="btn btn-outline-primary btn-sm">
+                                    Connect
+                                </a>
+                                {% endif %}
+                            </div>
+
+                            <!-- Twitter -->
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fab fa-twitter fa-lg me-2"></i>
+                                    Twitter
+                                    {% if twitter_account %}
+                                    <span class="text-success ms-2">
+                                        <i class="fas fa-check-circle"></i> Connected
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% if twitter_account %}
+                                <form method="POST" action="{{ url_for('user.disconnect_social', provider='twitter') }}"
+                                      style="display: inline;">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                        Disconnect
+                                    </button>
+                                </form>
+                                {% else %}
+                                <a href="{{ url_for('social.twitter_login') }}" class="btn btn-outline-primary btn-sm">
+                                    Connect
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Appearance Settings -->
+                <div class="tab-pane fade" id="appearance">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Appearance Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" action="{{ url_for('user.update_appearance') }}">
+                                {{ appearance_form.hidden_tag() }}
+                                <div class="mb-3">
+                                    <label class="form-label">Theme</label>
+                                    {{ appearance_form.theme(class="form-select") }}
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Font Size</label>
+                                    {{ appearance_form.font_size(class="form-select") }}
+                                </div>
+                                <div class="form-check mb-3">
+                                    {{ appearance_form.enable_animations(class="form-check-input") }}
+                                    <label class="form-check-label">Enable animations</label>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save Appearance Settings
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Enable Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+
+    // Handle file input change
+    document.getElementById('avatar').addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                document.querySelector('img.rounded-circle').src = e.target.result;
+            }
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block styles %}
+<style>
+    .stats-card {
+        transition: transform 0.3s ease;
+    }
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-2">
+            <div class="list-group">
+                <a href="{{ url_for('admin.dashboard') }}" class="list-group-item list-group-item-action active">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="{{ url_for('admin.users') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-users"></i> Users
+                </a>
+                <a href="{{ url_for('admin.posts') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-newspaper"></i> Posts
+                </a>
+                <a href="{{ url_for('admin.comments') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-comments"></i> Comments
+                </a>
+                <a href="{{ url_for('admin.categories') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-folder"></i> Categories
+                </a>
+                <a href="{{ url_for('admin.tags') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-tags"></i> Tags
+                </a>
+                <a href="{{ url_for('admin.media') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-images"></i> Media
+                </a>
+                <a href="{{ url_for('admin.settings') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-10">
+            <!-- Quick Stats -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white stats-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-0">Total Users</h6>
+                                    <h2 class="mt-2 mb-0">{{ stats.users_count }}</h2>
+                                </div>
+                                <i class="fas fa-users fa-2x"></i>
+                            </div>
+                            <p class="card-text mt-3 mb-0">
+                                <i class="fas fa-arrow-up"></i>
+                                {{ stats.new_users_today }} today
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white stats-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-0">Total Posts</h6>
+                                    <h2 class="mt-2 mb-0">{{ stats.posts_count }}</h2>
+                                </div>
+                                <i class="fas fa-newspaper fa-2x"></i>
+                            </div>
+                            <p class="card-text mt-3 mb-0">
+                                <i class="fas fa-arrow-up"></i>
+                                {{ stats.new_posts_today }} today
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white stats-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-0">Comments</h6>
+                                    <h2 class="mt-2 mb-0">{{ stats.comments_count }}</h2>
+                                </div>
+                                <i class="fas fa-comments fa-2x"></i>
+                            </div>
+                            <p class="card-text mt-3 mb-0">
+                                <i class="fas fa-arrow-up"></i>
+                                {{ stats.new_comments_today }} today
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white stats-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-0">Page Views</h6>
+                                    <h2 class="mt-2 mb-0">{{ stats.views_count }}</h2>
+                                </div>
+                                <i class="fas fa-eye fa-2x"></i>
+                            </div>
+                            <p class="card-text mt-3 mb-0">
+                                <i class="fas fa-arrow-up"></i>
+                                {{ stats.views_today }} today
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Recent Activity -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Recent Activity</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group">
+                                {% for activity in recent_activities %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ activity.action }}</h6>
+                                        <small class="text-muted">{{ activity.created_at|datetime }}</small>
+                                    </div>
+                                    <p class="mb-1">{{ activity.user.username }} {{ activity.details }}</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Popular Posts -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Popular Posts</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group">
+                                {% for post in popular_posts %}
+                                <a href="{{ url_for('main.post', slug=post.slug) }}" class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ post.title }}</h6>
+                                        <small class="text-muted">{{ post.views }} views</small>
+                                    </div>
+                                    <p class="mb-1">{{ post.description|truncate(100) }}</p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-user"></i> {{ post.author.username }} |
+                                        <i class="fas fa-comments"></i> {{ post.comments.count() }} comments
+                                    </small>
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">User Growth</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="userGrowthChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Content Analytics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="contentAnalyticsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // User Growth Chart
+    const userGrowthCtx = document.getElementById('userGrowthChart').getContext('2d');
+    new Chart(userGrowthCtx, {
+        type: 'line',
+        data: {
+            labels: {{ user_growth_labels|tojson }},
+            datasets: [{
+                label: 'New Users',
+                data: {{ user_growth_data|tojson }},
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    // Content Analytics Chart
+    const contentAnalyticsCtx = document.getElementById('contentAnalyticsChart').getContext('2d');
+    new Chart(contentAnalyticsCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ content_analytics_labels|tojson }},
+            datasets: [{
+                label: 'Posts',
+                data: {{ posts_by_category|tojson }},
+                backgroundColor: 'rgba(54, 162, 235, 0.5)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
