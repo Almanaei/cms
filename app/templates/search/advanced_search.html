@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Advanced Search</h4>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('main.advanced_search') }}" method="get">
+                        <!-- Keywords -->
+                        <div class="mb-3">
+                            <label for="keywords" class="form-label">Keywords</label>
+                            <input type="text" class="form-control" id="keywords" name="keywords"
+                                   value="{{ request.args.get('keywords', '') }}"
+                                   placeholder="Enter keywords...">
+                        </div>
+
+                        <!-- Category -->
+                        <div class="mb-3">
+                            <label for="category" class="form-label">Category</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="">All Categories</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}"
+                                        {% if category.id|string == request.args.get('category', '') %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Author -->
+                        <div class="mb-3">
+                            <label for="author" class="form-label">Author</label>
+                            <input type="text" class="form-control" id="author" name="author"
+                                   value="{{ request.args.get('author', '') }}"
+                                   placeholder="Enter author username...">
+                        </div>
+
+                        <!-- Date Range -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="date_from" class="form-label">Date From</label>
+                                <input type="date" class="form-control" id="date_from" name="date_from"
+                                       value="{{ request.args.get('date_from', '') }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="date_to" class="form-label">Date To</label>
+                                <input type="date" class="form-control" id="date_to" name="date_to"
+                                       value="{{ request.args.get('date_to', '') }}">
+                            </div>
+                        </div>
+
+                        <!-- Tags -->
+                        <div class="mb-3">
+                            <label for="tags" class="form-label">Tags</label>
+                            <input type="text" class="form-control" id="tags" name="tags"
+                                   value="{{ request.args.get('tags', '') }}"
+                                   placeholder="Enter tags separated by commas...">
+                        </div>
+
+                        <!-- Sort Options -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="sort_by" class="form-label">Sort By</label>
+                                <select class="form-select" id="sort_by" name="sort_by">
+                                    <option value="relevance"
+                                            {% if request.args.get('sort_by') == 'relevance' %}selected{% endif %}>
+                                        Relevance
+                                    </option>
+                                    <option value="date"
+                                            {% if request.args.get('sort_by') == 'date' %}selected{% endif %}>
+                                        Date
+                                    </option>
+                                    <option value="views"
+                                            {% if request.args.get('sort_by') == 'views' %}selected{% endif %}>
+                                        Views
+                                    </option>
+                                    <option value="comments"
+                                            {% if request.args.get('sort_by') == 'comments' %}selected{% endif %}>
+                                        Comments
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="order" class="form-label">Order</label>
+                                <select class="form-select" id="order" name="order">
+                                    <option value="desc"
+                                            {% if request.args.get('order') == 'desc' %}selected{% endif %}>
+                                        Descending
+                                    </option>
+                                    <option value="asc"
+                                            {% if request.args.get('order') == 'asc' %}selected{% endif %}>
+                                        Ascending
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>Search
+                            </button>
+                            <button type="reset" class="btn btn-secondary">
+                                <i class="fas fa-undo me-2"></i>Reset
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Search Results -->
+            {% if results %}
+            <div class="mt-4">
+                <h5>Search Results ({{ total }} found)</h5>
+                <div class="list-group">
+                    {% for result in results %}
+                    <a href="{{ url_for('main.post', slug=result.slug) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">{{ result.title }}</h5>
+                            <small class="text-muted">{{ result.created_at|datetime }}</small>
+                        </div>
+                        <p class="mb-1">{{ result.description|truncate(200) }}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-user"></i> {{ result.author.username }} |
+                            <i class="fas fa-folder"></i> {{ result.category.name }} |
+                            <i class="fas fa-comments"></i> {{ result.comments.count() }} comments
+                        </small>
+                    </a>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if pagination.pages > 1 %}
+                <nav aria-label="Search results pages" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.advanced_search', page=pagination.prev_num, **search_args) }}">
+                                Previous
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        {% for page in pagination.iter_pages() %}
+                            {% if page %}
+                                {% if page != pagination.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('main.advanced_search', page=page, **search_args) }}">
+                                        {{ page }}
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page }}</span>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.advanced_search', page=pagination.next_num, **search_args) }}">
+                                Next
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize tag input with select2
+    $(document).ready(function() {
+        $('#tags').select2({
+            tags: true,
+            tokenSeparators: [',', ' '],
+            placeholder: 'Enter tags...',
+            allowClear: true
+        });
+    });
+</script>
+{% endblock %}

@@ -19,3 +19,16 @@ boto3==1.28.25
 redis==5.0.0
 celery==5.3.1
 PyJWT==2.8.0
+Flask-OAuthlib==0.9.6
+elasticsearch==7.17.9
+Flask-Elasticsearch==0.2.5
+Flask-SSLify==0.1.5
+Flask-Sitemap==0.4.0
+Flask-Analytics==0.6.0
+Flask-Compress==1.13
+Flask-SeaSurf==1.1.1
+Flask-Talisman==1.0.0
+python-twitter==3.5
+facebook-sdk==3.1.0
+linkedin-api==2.0.0
+instagram-private-api==1.6.0

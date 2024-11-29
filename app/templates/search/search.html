@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <!-- Search Form -->
+            <form action="{{ url_for('main.search') }}" method="get" class="mb-4">
+                <div class="input-group input-group-lg">
+                    <input type="text" name="q" class="form-control" placeholder="Search posts, categories, tags..."
+                           value="{{ request.args.get('q', '') }}" required>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+            </form>
+
+            <!-- Search Results -->
+            {% if query %}
+            <h4 class="mb-4">Search Results for "{{ query }}"</h4>
+            
+            {% if total > 0 %}
+            <p class="text-muted">Found {{ total }} result{% if total != 1 %}s{% endif %}</p>
+            
+            <!-- Results List -->
+            <div class="list-group">
+                {% for post in posts %}
+                <a href="{{ url_for('main.post', slug=post.slug) }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">{{ post.title }}</h5>
+                        <small class="text-muted">{{ post.created_at|datetime }}</small>
+                    </div>
+                    <p class="mb-1">{{ post.description|truncate(200) }}</p>
+                    <small class="text-muted">
+                        <i class="fas fa-user"></i> {{ post.author.username }} |
+                        <i class="fas fa-folder"></i> {{ post.category.name }} |
+                        <i class="fas fa-comments"></i> {{ post.comments.count() }} comments
+                    </small>
+                </a>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if pagination and pagination.pages > 1 %}
+            <nav aria-label="Search results pages" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('main.search', q=query, page=pagination.prev_num) }}">
+                            Previous
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for page in pagination.iter_pages() %}
+                        {% if page %}
+                            {% if page != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.search', q=query, page=page) }}">
+                                    {{ page }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('main.search', q=query, page=pagination.next_num) }}">
+                            Next
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="alert alert-info">
+                No results found for your search. Try different keywords or check your spelling.
+            </div>
+            {% endif %}
+
+            {% endif %}
+        </div>
+
+        <!-- Search Tips Sidebar -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Search Tips</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-info-circle text-info me-2"></i>
+                            Use quotes for exact phrases: "example phrase"
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-info-circle text-info me-2"></i>
+                            Search specific categories using: category:name
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-info-circle text-info me-2"></i>
+                            Search by author using: author:username
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-info-circle text-info me-2"></i>
+                            Filter by date using: date:YYYY-MM-DD
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

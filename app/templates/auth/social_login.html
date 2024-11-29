@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Sign in with Social Media</h4>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-3">
+                        <!-- Google Login -->
+                        <a href="{{ url_for('social.google_login') }}" class="btn btn-danger btn-lg btn-block">
+                            <i class="fab fa-google me-2"></i> Continue with Google
+                        </a>
+
+                        <!-- Facebook Login -->
+                        <a href="{{ url_for('social.facebook_login') }}" class="btn btn-primary btn-lg btn-block">
+                            <i class="fab fa-facebook-f me-2"></i> Continue with Facebook
+                        </a>
+
+                        <!-- Twitter Login -->
+                        <a href="{{ url_for('social.twitter_login') }}" class="btn btn-info btn-lg btn-block text-white">
+                            <i class="fab fa-twitter me-2"></i> Continue with Twitter
+                        </a>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <p class="mb-0">Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a></p>
+                        <p class="mt-2">Don't have an account? <a href="{{ url_for('auth.register') }}">Register here</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
