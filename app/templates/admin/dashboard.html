@@ -209,44 +209,94 @@
 <script>
     // User Growth Chart
     const userGrowthCtx = document.getElementById('userGrowthChart').getContext('2d');
-    new Chart(userGrowthCtx, {
+    const userGrowthData = {
+        labels: JSON.parse('{{ user_growth_labels|tojson|safe }}'),
+        datasets: [{
+            label: 'New Users',
+            data: JSON.parse('{{ user_growth_data|tojson|safe }}'),
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            borderWidth: 2,
+            tension: 0.1,
+            fill: true
+        }]
+    };
+    const userGrowthConfig = {
         type: 'line',
-        data: {
-            labels: {{ user_growth_labels|tojson }},
-            datasets: [{
-                label: 'New Users',
-                data: {{ user_growth_data|tojson }},
-                borderColor: 'rgb(75, 192, 192)',
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false
-        }
-    });
-
-    // Content Analytics Chart
-    const contentAnalyticsCtx = document.getElementById('contentAnalyticsChart').getContext('2d');
-    new Chart(contentAnalyticsCtx, {
-        type: 'bar',
-        data: {
-            labels: {{ content_analytics_labels|tojson }},
-            datasets: [{
-                label: 'Posts',
-                data: {{ posts_by_category|tojson }},
-                backgroundColor: 'rgba(54, 162, 235, 0.5)'
-            }]
-        },
+        data: userGrowthData,
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'User Growth Over Time'
+                }
+            },
             scales: {
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
                 }
             }
         }
-    });
+    };
+    new Chart(userGrowthCtx, userGrowthConfig);
+
+    // Content Analytics Chart
+    const contentAnalyticsCtx = document.getElementById('contentAnalyticsChart').getContext('2d');
+    const contentAnalyticsData = {
+        labels: JSON.parse('{{ content_analytics_labels|tojson|safe }}'),
+        datasets: [{
+            label: 'Posts by Category',
+            data: JSON.parse('{{ posts_by_category|tojson|safe }}'),
+            backgroundColor: [
+                'rgba(54, 162, 235, 0.5)',
+                'rgba(255, 99, 132, 0.5)',
+                'rgba(75, 192, 192, 0.5)',
+                'rgba(255, 206, 86, 0.5)',
+                'rgba(153, 102, 255, 0.5)'
+            ],
+            borderColor: [
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 99, 132, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(153, 102, 255, 1)'
+            ],
+            borderWidth: 1
+        }]
+    };
+    const contentAnalyticsConfig = {
+        type: 'bar',
+        data: contentAnalyticsData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Content Distribution by Category'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    };
+    new Chart(contentAnalyticsCtx, contentAnalyticsConfig);
 </script>
 {% endblock %}
