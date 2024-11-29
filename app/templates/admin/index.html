@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - CMS{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Posts</h5>
+                <p class="card-text display-4">{{ posts_count }}</p>
+                <a href="{{ url_for('admin.posts') }}" class="btn btn-light">Manage Posts</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Categories</h5>
+                <p class="card-text display-4">{{ categories_count }}</p>
+                <a href="{{ url_for('admin.categories') }}" class="btn btn-light">Manage Categories</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-info mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Users</h5>
+                <p class="card-text display-4">{{ users_count }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                Quick Actions
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('admin.create_post') }}" class="btn btn-primary mb-2">Create New Post</a>
+                <a href="{{ url_for('admin.create_category') }}" class="btn btn-success mb-2">Create New Category</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

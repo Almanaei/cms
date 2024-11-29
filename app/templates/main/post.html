@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }} - CMS{% endblock %}
+
+{% block content %}
+<article class="blog-post">
+    {% if post.featured_image %}
+    <img src="{{ url_for('static', filename='uploads/' + post.featured_image) }}" class="img-fluid mb-4" alt="{{ post.title }}">
+    {% endif %}
+    
+    <h1 class="mb-4">{{ post.title }}</h1>
+    
+    <div class="text-muted mb-4">
+        Posted by {{ post.author.username }} on {{ post.created_at.strftime('%B %d, %Y') }}
+        {% if post.category %}
+        in <a href="{{ url_for('main.category', slug=post.category.slug) }}">{{ post.category.name }}</a>
+        {% endif %}
+    </div>
+
+    <div class="blog-content">
+        {{ post.content | safe }}
+    </div>
+</article>
+{% endblock %}

@@ -1,0 +1,92 @@
+/* General Styles */
+body {
+    background-color: #f8f9fa;
+}
+
+/* Blog Post Styles */
+.blog-post {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.blog-post img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+}
+
+.blog-content {
+    line-height: 1.8;
+    font-size: 1.1rem;
+}
+
+/* Card Styles */
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: none;
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+/* Admin Dashboard Styles */
+.card .display-4 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin: 1rem 0;
+}
+
+/* Form Styles */
+.form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+}
+
+/* Navigation Styles */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Pagination Styles */
+.pagination {
+    margin-bottom: 0;
+}
+
+/* Alert Styles */
+.alert {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+/* Table Styles */
+.table thead th {
+    border-top: none;
+    background-color: #f8f9fa;
+}
+
+/* Button Styles */
+.btn {
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+}
+
+/* Image Upload Preview */
+.image-preview {
+    max-width: 300px;
+    margin-top: 1rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .blog-post {
+        padding: 1rem;
+    }
+    
+    .card .display-4 {
+        font-size: 2rem;
+    }
+}
