@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Create' if not user else 'Edit' }} User - Admin{% endblock %}
+
+{% block styles %}
+<style>
+.profile-image-preview {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 1rem;
+}
+
+.profile-image-placeholder {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background-color: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: #adb5bd;
+    margin-bottom: 1rem;
+}
+
+.permission-group {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.permission-group h5 {
+    margin-bottom: 1rem;
+}
+
+.custom-control {
+    margin-bottom: 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ 'Create' if not user else 'Edit' }} User</h2>
+        <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Users
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.csrf_token }}
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.username.label(class="form-label") }}
+                                    {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else "")) }}
+                                    {% if form.username.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.username.errors[0] }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.email.label(class="form-label") }}
+                                    {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
+                                    {% if form.email.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.email.errors[0] }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.password.label(class="form-label") }}
+                                    {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
+                                    {% if form.password.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.password.errors[0] }}
+                                    </div>
+                                    {% endif %}
+                                    {% if user %}
+                                    <small class="form-text text-muted">Leave blank to keep current password</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.confirm_password.label(class="form-label") }}
+                                    {{ form.confirm_password(class="form-control" + (" is-invalid" if form.confirm_password.errors else "")) }}
+                                    {% if form.confirm_password.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.confirm_password.errors[0] }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.role.label(class="form-label") }}
+                                    {{ form.role(class="form-select" + (" is-invalid" if form.role.errors else "")) }}
+                                    {% if form.role.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.role.errors[0] }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    {{ form.is_active.label(class="form-label") }}
+                                    <div>
+                                        {{ form.is_active(class="form-check-input") }}
+                                        <small class="form-text text-muted">
+                                            Inactive users cannot log in to the system
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            {{ form.profile_image.label(class="form-label") }}
+                            {{ form.profile_image(class="form-control" + (" is-invalid" if form.profile_image.errors else ""), onchange="previewImage(this)") }}
+                            {% if form.profile_image.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.profile_image.errors[0] }}
+                            </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Recommended size: 200x200 pixels
+                            </small>
+                        </div>
+
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 
+                                {{ 'Create User' if not user else 'Save Changes' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Profile Image Preview -->
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Profile Image</h5>
+                    {% if user and user.profile_image %}
+                    <img src="{{ url_for('static', filename='uploads/' + user.profile_image) }}"
+                         alt="Profile Preview" 
+                         class="profile-image-preview" 
+                         id="imagePreview">
+                    {% else %}
+                    <div class="profile-image-placeholder" id="imagePlaceholder">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <img src="#" 
+                         alt="Profile Preview" 
+                         class="profile-image-preview" 
+                         id="imagePreview" 
+                         style="display: none;">
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- User Info -->
+            {% if user %}
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">User Information</h5>
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Created</small>
+                        {{ user.created_at.strftime('%B %d, %Y') }}
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Last Login</small>
+                        {% if user.last_login %}
+                        {{ user.last_login.strftime('%B %d, %Y %H:%M') }}
+                        {% else %}
+                        Never
+                        {% endif %}
+                    </div>
+                    <div>
+                        <small class="text-muted d-block">Last Activity</small>
+                        {% if user.last_activity %}
+                        {{ user.last_activity|timeago }}
+                        {% else %}
+                        Never
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewImage(input) {
+    const preview = document.getElementById('imagePreview');
+    const placeholder = document.getElementById('imagePlaceholder');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
+        }
+        
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
+{% endblock %}

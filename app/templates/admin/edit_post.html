@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Post - Admin{% endblock %}
+
+{% block styles %}
+<style>
+    .editor-container {
+        margin-bottom: 1rem;
+    }
+    .ck-editor__editable {
+        min-height: 400px;
+    }
+    .meta-section {
+        background: #f8f9fa;
+        border-radius: 4px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    .schedule-section {
+        display: none;
+    }
+    .schedule-section.active {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Edit Post</h2>
+    <form method="POST" enctype="multipart/form-data" id="postForm">
+        <div class="mb-3">
+            <label for="title" class="form-label">Title</label>
+            <input type="text" class="form-control" id="title" name="title" value="{{ post.title }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="category" class="form-label">Category</label>
+            <select class="form-select" id="category" name="category_id">
+                <option value="">Select Category</option>
+                {% for category in categories %}
+                <option value="{{ category.id }}" {% if post.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="summary" class="form-label">Summary</label>
+            <textarea class="form-control" id="summary" name="summary" rows="3">{{ post.summary }}</textarea>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Content</label>
+            <div class="editor-container">
+                <textarea id="content" name="content">{{ post.content|safe }}</textarea>
+            </div>
+        </div>
+
+        <div class="meta-section">
+            <div class="mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="schedule" name="schedule">
+                    <label class="form-check-label" for="schedule">
+                        Schedule Post
+                    </label>
+                </div>
+            </div>
+
+            <div class="schedule-section">
+                <div class="mb-3">
+                    <label for="scheduled_date" class="form-label">Date</label>
+                    <input type="date" class="form-control" id="scheduled_date" name="scheduled_date">
+                </div>
+                <div class="mb-3">
+                    <label for="scheduled_time" class="form-label">Time</label>
+                    <input type="time" class="form-control" id="scheduled_time" name="scheduled_time">
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Update Post</button>
+        <a href="{{ url_for('admin.posts') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.ckeditor.com/ckeditor5/36.0.1/classic/ckeditor.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    ClassicEditor
+        .create(document.querySelector('#content'), {
+            toolbar: {
+                items: [
+                    'heading',
+                    '|',
+                    'bold',
+                    'italic',
+                    'link',
+                    'bulletedList',
+                    'numberedList',
+                    '|',
+                    'outdent',
+                    'indent',
+                    '|',
+                    'imageUpload',
+                    'blockQuote',
+                    'insertTable',
+                    'mediaEmbed',
+                    'undo',
+                    'redo',
+                    '|',
+                    'code',
+                    'codeBlock',
+                    'htmlEmbed',
+                    '|',
+                    'highlight',
+                    'fontBackgroundColor',
+                    'fontColor',
+                    '|',
+                    'alignment',
+                    'fontSize'
+                ]
+            },
+            language: 'en',
+            image: {
+                toolbar: [
+                    'imageTextAlternative',
+                    'imageStyle:full',
+                    'imageStyle:side'
+                ]
+            },
+            table: {
+                contentToolbar: [
+                    'tableColumn',
+                    'tableRow',
+                    'mergeTableCells',
+                    'tableCellProperties',
+                    'tableProperties'
+                ]
+            }
+        })
+        .catch(error => {
+            console.error(error);
+        });
+
+    // Handle scheduling toggle
+    const scheduleCheckbox = document.getElementById('schedule');
+    const scheduleSection = document.querySelector('.schedule-section');
+    
+    scheduleCheckbox.addEventListener('change', function() {
+        scheduleSection.classList.toggle('active', this.checked);
+    });
+});
+</script>
+{% endblock %}

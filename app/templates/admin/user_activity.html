@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}User Activity - {{ user.username }} - Admin{% endblock %}
+
+{% block styles %}
+<style>
+.activity-timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.activity-timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.activity-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.activity-item::before {
+    content: '';
+    position: absolute;
+    left: -2rem;
+    top: 0.25rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #007bff;
+}
+
+.activity-meta {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.activity-icon {
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    margin-right: 1rem;
+}
+
+.action-created {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.action-updated {
+    background-color: #cce5ff;
+    color: #004085;
+}
+
+.action-deleted {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.action-login {
+    background-color: #fff3cd;
+    color: #856404;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>User Activity</h2>
+            <p class="text-muted">Activity history for {{ user.username }}</p>
+        </div>
+        <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Users
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- User Info Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        {% if user.profile_image %}
+                        <img src="{{ url_for('static', filename='uploads/' + user.profile_image) }}"
+                             alt="{{ user.username }}" 
+                             class="rounded-circle" 
+                             style="width: 100px; height: 100px; object-fit: cover;">
+                        {% else %}
+                        <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center mx-auto"
+                             style="width: 100px; height: 100px; font-size: 2rem;">
+                            {{ user.username[0]|upper }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <h5 class="card-title text-center mb-3">{{ user.username }}</h5>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Email</small>
+                        {{ user.email }}
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Role</small>
+                        <span class="badge bg-info">{{ user.role.name if user.role else 'No Role' }}</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Account Created</small>
+                        {{ user.created_at.strftime('%B %d, %Y') }}
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Last Active</small>
+                        {% if user.last_activity %}
+                        {{ user.last_activity|timeago }}
+                        {% else %}
+                        Never
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Status</small>
+                        {% if user.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-danger">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Timeline -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <div class="activity-timeline">
+                        {% for activity in activities.items %}
+                        <div class="activity-item">
+                            <div class="d-flex">
+                                <div class="activity-icon action-{{ activity.action.split('_')[0] }}">
+                                    {% if activity.action.startswith('created') %}
+                                    <i class="fas fa-plus"></i>
+                                    {% elif activity.action.startswith('updated') %}
+                                    <i class="fas fa-edit"></i>
+                                    {% elif activity.action.startswith('deleted') %}
+                                    <i class="fas fa-trash"></i>
+                                    {% elif activity.action.startswith('login') %}
+                                    <i class="fas fa-sign-in-alt"></i>
+                                    {% else %}
+                                    <i class="fas fa-info"></i>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div class="activity-meta">
+                                        {{ activity.created_at.strftime('%B %d, %Y %H:%M') }}
+                                        {% if activity.ip_address %}
+                                        <span class="ms-2">
+                                            <i class="fas fa-globe"></i> {{ activity.ip_address }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mt-1">{{ activity.details }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% if activities.pages > 1 %}
+                    <nav aria-label="Activity pagination" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% for page in activities.iter_pages() %}
+                                {% if page %}
+                                    <li class="page-item {% if page == activities.page %}active{% endif %}">
+                                        <a class="page-link" href="{{ url_for('admin.user_activity', id=user.id, page=page) }}">
+                                            {{ page }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

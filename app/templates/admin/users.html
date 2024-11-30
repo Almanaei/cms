@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Users - Admin{% endblock %}
+
+{% block styles %}
+<style>
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.status-online {
+    background-color: #28a745;
+}
+
+.status-offline {
+    background-color: #dc3545;
+}
+
+.status-away {
+    background-color: #ffc107;
+}
+
+.role-badge {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Manage Users</h2>
+        <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i> Create User
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Last Active</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users.items %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if user.profile_image %}
+                                    <img src="{{ url_for('static', filename='uploads/' + user.profile_image) }}"
+                                         alt="{{ user.username }}" class="user-avatar me-2">
+                                    {% else %}
+                                    <div class="user-avatar me-2 bg-secondary d-flex align-items-center justify-content-center text-white">
+                                        {{ user.username[0]|upper }}
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <div>{{ user.username }}</div>
+                                        <small class="text-muted">{{ user.email }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-info role-badge">{{ user.role.name if user.role else 'No Role' }}</span>
+                            </td>
+                            <td>
+                                {% if user.is_active %}
+                                    {% if user.last_activity and (now() - user.last_activity).total_seconds() < 300 %}
+                                    <span class="status-indicator status-online"></span> Online
+                                    {% elif user.last_activity and (now() - user.last_activity).total_seconds() < 900 %}
+                                    <span class="status-indicator status-away"></span> Away
+                                    {% else %}
+                                    <span class="status-indicator status-offline"></span> Offline
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-danger">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.last_activity %}
+                                <span title="{{ user.last_activity.strftime('%Y-%m-%d %H:%M:%S') }}">
+                                    {{ user.last_activity|timeago }}
+                                </span>
+                                {% else %}
+                                Never
+                                {% endif %}
+                            </td>
+                            <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('admin.edit_user', id=user.id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{{ url_for('admin.user_activity', id=user.id) }}"
+                                       class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-history"></i>
+                                    </a>
+                                    {% if user != current_user %}
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-danger"
+                                            onclick="confirmDelete({{ user.id }}, '{{ user.username }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if users.pages > 1 %}
+            <nav aria-label="User pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% for page in users.iter_pages() %}
+                        {% if page %}
+                            <li class="page-item {% if page == users.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin.users', page=page) }}">{{ page }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete user <span id="deleteUsername"></span>?
+                This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST">
+                    <button type="submit" class="btn btn-danger">Delete User</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(userId, username) {
+    document.getElementById('deleteUsername').textContent = username;
+    document.getElementById('deleteForm').action = `/admin/user/${userId}/delete`;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %}

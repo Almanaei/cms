@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Category - Admin{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="mb-0">Edit Category</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="mb-3">
+                <label for="name" class="form-label">Category Name</label>
+                <input type="text" class="form-control" id="name" name="name" value="{{ category.name }}" required>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Update Category</button>
+            <a href="{{ url_for('admin.categories') }}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -12,6 +12,70 @@ from flask import url_for
 def load_user(id):
     return User.query.get(int(id))
 
+class Role(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), unique=True, nullable=False)
+    description = db.Column(db.String(255))
+    permissions = db.Column(db.Integer, default=0)  # Bitwise permissions
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    users = db.relationship('User', backref='role', lazy='dynamic')
+    
+    # Permission definitions
+    VIEW_DASHBOARD = 0x01
+    MANAGE_POSTS = 0x02
+    MANAGE_USERS = 0x04
+    MANAGE_ROLES = 0x08
+    MANAGE_SETTINGS = 0x10
+    MANAGE_MEDIA = 0x20
+    MODERATE_COMMENTS = 0x40
+    
+    @staticmethod
+    def insert_roles():
+        roles = {
+            'User': [Role.VIEW_DASHBOARD],
+            'Editor': [Role.VIEW_DASHBOARD, Role.MANAGE_POSTS, Role.MODERATE_COMMENTS],
+            'Admin': [Role.VIEW_DASHBOARD, Role.MANAGE_POSTS, Role.MANAGE_USERS,
+                     Role.MANAGE_ROLES, Role.MANAGE_SETTINGS, Role.MANAGE_MEDIA,
+                     Role.MODERATE_COMMENTS]
+        }
+        
+        for role_name, permissions in roles.items():
+            role = Role.query.filter_by(name=role_name).first()
+            if role is None:
+                role = Role(name=role_name)
+            role.reset_permissions()
+            for perm in permissions:
+                role.add_permission(perm)
+            db.session.add(role)
+        db.session.commit()
+    
+    def add_permission(self, perm):
+        if not self.has_permission(perm):
+            self.permissions += perm
+    
+    def remove_permission(self, perm):
+        if self.has_permission(perm):
+            self.permissions -= perm
+    
+    def reset_permissions(self):
+        self.permissions = 0
+    
+    def has_permission(self, perm):
+        return self.permissions & perm == perm
+
+class UserActivity(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    action = db.Column(db.String(64), nullable=False)
+    details = db.Column(db.Text)
+    ip_address = db.Column(db.String(45))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<UserActivity {self.action}>'
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
@@ -28,11 +92,20 @@ class User(UserMixin, db.Model):
     social_twitter = db.Column(db.String(200))
     social_instagram = db.Column(db.String(200))
     email_confirmed = db.Column(db.Boolean, default=False)
+    role_id = db.Column(db.Integer, db.ForeignKey('role.id'))
+    last_activity = db.Column(db.DateTime, default=datetime.utcnow)
+    failed_login_attempts = db.Column(db.Integer, default=0)
+    account_locked = db.Column(db.Boolean, default=False)
+    account_locked_until = db.Column(db.DateTime)
+    must_change_password = db.Column(db.Boolean, default=False)
+    password_changed_at = db.Column(db.DateTime)
     
     # Relationships
     posts = db.relationship('Post', backref='author', lazy='dynamic')
     comments = db.relationship('Comment', backref='author', lazy='dynamic')
     likes = db.relationship('Like', backref='user', lazy='dynamic')
+    activities = db.relationship('UserActivity', backref='user', lazy='dynamic')
+    page_views = db.relationship('PageView', backref='viewer', lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -53,6 +126,40 @@ class User(UserMixin, db.Model):
         except:
             return None
         return User.query.get(id)
+
+    def can(self, perm):
+        return self.role is not None and self.role.has_permission(perm)
+    
+    def is_administrator(self):
+        return self.role is not None and self.role.name == 'Admin'
+        
+    def log_activity(self, action, details=None, ip_address=None):
+        activity = UserActivity(
+            user_id=self.id,
+            action=action,
+            details=details,
+            ip_address=ip_address
+        )
+        db.session.add(activity)
+        db.session.commit()
+    
+    def update_last_activity(self):
+        self.last_activity = datetime.utcnow()
+        db.session.add(self)
+        db.session.commit()
+    
+    def lock_account(self, duration_minutes=30):
+        self.account_locked = True
+        self.account_locked_until = datetime.utcnow() + timedelta(minutes=duration_minutes)
+        db.session.add(self)
+        db.session.commit()
+    
+    def unlock_account(self):
+        self.account_locked = False
+        self.account_locked_until = None
+        self.failed_login_attempts = 0
+        db.session.add(self)
+        db.session.commit()
 
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -79,6 +186,7 @@ class Post(db.Model):
     comments = db.relationship('Comment', backref='post', lazy='dynamic')
     tags = db.relationship('Tag', secondary='post_tags', backref=db.backref('posts', lazy='dynamic'))
     likes = db.relationship('Like', backref='post', lazy='dynamic')
+    page_views = db.relationship('PageView', backref='viewed_post', lazy='dynamic')
 
     def __init__(self, *args, **kwargs):
         if not kwargs.get('slug') and kwargs.get('title'):
@@ -181,6 +289,24 @@ class MediaItem(db.Model):
         if self.thumbnail_path:
             return url_for('media.download_media', id=self.id, thumbnail=True)
         return None
+
+class PageView(db.Model):
+    """Model for tracking page views and analytics"""
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    ip_address = db.Column(db.String(45))
+    user_agent = db.Column(db.String(255))
+    referrer = db.Column(db.String(255))
+    duration = db.Column(db.Integer, default=0)  # Duration in seconds
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Define relationships without backrefs to avoid conflicts
+    post = db.relationship('Post')
+    user = db.relationship('User')
+
+    def __repr__(self):
+        return f'<PageView {self.id}>'
 
 # Association Tables
 post_tags = db.Table('post_tags',

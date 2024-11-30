@@ -10,6 +10,8 @@ from functools import wraps
 from flask_login import current_user
 from flask import abort, request
 import jwt
+from datetime import timedelta
+import babel
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -87,8 +89,30 @@ def sanitize_html(html_content):
     return bleach.clean(html_content, tags=allowed_tags, attributes=allowed_attrs)
 
 def markdown_to_html(content):
-    """Convert markdown to HTML"""
-    return markdown2.markdown(content, extras=['fenced-code-blocks', 'tables'])
+    """Convert markdown content to HTML."""
+    # Convert markdown to HTML
+    html = markdown2.markdown(content, extras=[
+        'fenced-code-blocks',
+        'tables',
+        'break-on-newline',
+        'header-ids',
+        'link-patterns'
+    ])
+    
+    # Clean HTML to prevent XSS
+    allowed_tags = [
+        'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'strong', 'em', 'a', 'ul', 'ol', 'li', 'code',
+        'pre', 'blockquote', 'table', 'thead', 'tbody',
+        'tr', 'th', 'td', 'img'
+    ]
+    allowed_attrs = {
+        'a': ['href', 'title'],
+        'img': ['src', 'alt', 'title'],
+        '*': ['class']
+    }
+    
+    return bleach.clean(html, tags=allowed_tags, attributes=allowed_attrs)
 
 def admin_required(f):
     """Decorator for views that require admin access"""

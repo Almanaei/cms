@@ -79,3 +79,37 @@ cms/
 3. Commit your changes
 4. Push to the branch
 5. Create a Pull Request
+
+## Common Issues and Solutions
+
+### CSS Linter Errors with Jinja2 Template Variables
+
+**Problem**: When using Jinja2 template variables within CSS styles, you might encounter CSS linter errors like:
+```
+at-rule or selector expectedcss(css-ruleorselectorexpected)
+```
+
+**Solution**: Instead of using template variables directly in CSS or inline styles, use a data attribute approach:
+
+1. Store the dynamic value in a data attribute:
+```html
+<div class="progress-bar" 
+     data-width="{{ value }}"
+     role="progressbar">
+</div>
+```
+
+2. Use JavaScript to apply the style after the page loads:
+```javascript
+document.addEventListener('DOMContentLoaded', function() {
+    const element = document.querySelector('.progress-bar');
+    const width = element.getAttribute('data-width');
+    element.style.width = width + '%';
+});
+```
+
+This approach:
+- Avoids CSS syntax errors from template variables
+- Maintains clean separation between HTML and CSS
+- Works reliably across different browsers
+- Keeps the code maintainable and linter-friendly

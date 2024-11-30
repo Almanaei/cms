@@ -2,13 +2,21 @@
 
 {% block title %}Create Post - Admin{% endblock %}
 
+{% block styles %}
+<style>
+    .editor-container {
+        margin-bottom: 1rem;
+    }
+    .ck-editor__editable {
+        min-height: 400px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h2 class="mb-0">Create New Post</h2>
-    </div>
-    <div class="card-body">
-        <form method="POST" enctype="multipart/form-data">
+    <div class="container mt-4">
+        <h2>Create New Post</h2>
+        <form method="POST" enctype="multipart/form-data" id="postForm">
             <div class="mb-3">
                 <label for="title" class="form-label">Title</label>
                 <input type="text" class="form-control" id="title" name="title" required>
@@ -25,8 +33,15 @@
             </div>
             
             <div class="mb-3">
-                <label for="content" class="form-label">Content</label>
-                <textarea class="form-control" id="content" name="content" rows="10" required></textarea>
+                <label for="summary" class="form-label">Summary</label>
+                <textarea class="form-control" id="summary" name="summary" rows="3"></textarea>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Content</label>
+                <div class="editor-container">
+                    <textarea id="content" name="content"></textarea>
+                </div>
             </div>
             
             <div class="mb-3">
@@ -43,24 +58,67 @@
             <a href="{{ url_for('admin.posts') }}" class="btn btn-secondary">Cancel</a>
         </form>
     </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/5/tinymce.min.js" referrerpolicy="origin"></script>
+<script src="https://cdn.ckeditor.com/ckeditor5/36.0.1/classic/ckeditor.js"></script>
 <script>
-    tinymce.init({
-        selector: '#content',
-        height: 500,
-        menubar: false,
-        plugins: [
-            'advlist autolink lists link image charmap print preview anchor',
-            'searchreplace visualblocks code fullscreen',
-            'insertdatetime media table paste code help wordcount'
-        ],
-        toolbar: 'undo redo | formatselect | bold italic backcolor | \
-                alignleft aligncenter alignright alignjustify | \
-                bullist numlist outdent indent | removeformat | help'
-    });
+document.addEventListener('DOMContentLoaded', function() {
+    ClassicEditor
+        .create(document.querySelector('#content'), {
+            toolbar: {
+                items: [
+                    'heading',
+                    '|',
+                    'bold',
+                    'italic',
+                    'link',
+                    'bulletedList',
+                    'numberedList',
+                    '|',
+                    'outdent',
+                    'indent',
+                    '|',
+                    'imageUpload',
+                    'blockQuote',
+                    'insertTable',
+                    'mediaEmbed',
+                    'undo',
+                    'redo',
+                    '|',
+                    'code',
+                    'codeBlock',
+                    'htmlEmbed',
+                    '|',
+                    'highlight',
+                    'fontBackgroundColor',
+                    'fontColor',
+                    '|',
+                    'alignment',
+                    'fontSize'
+                ]
+            },
+            language: 'en',
+            image: {
+                toolbar: [
+                    'imageTextAlternative',
+                    'imageStyle:full',
+                    'imageStyle:side'
+                ]
+            },
+            table: {
+                contentToolbar: [
+                    'tableColumn',
+                    'tableRow',
+                    'mergeTableCells',
+                    'tableCellProperties',
+                    'tableProperties'
+                ]
+            }
+        })
+        .catch(error => {
+            console.error(error);
+        });
+});
 </script>
 {% endblock %}
