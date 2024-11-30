@@ -6,6 +6,7 @@ from flask import current_app
 from app import db, login_manager
 from slugify import slugify
 from datetime import timedelta
+from flask import url_for
 
 @login_manager.user_loader
 def load_user(id):
@@ -154,6 +155,32 @@ class Media(db.Model):
     
     # Foreign Keys
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+class MediaItem(db.Model):
+    __tablename__ = 'media_items'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), nullable=False)
+    filepath = db.Column(db.String(512), nullable=False, unique=True)
+    thumbnail_path = db.Column(db.String(512))
+    type = db.Column(db.String(50), nullable=False)  # image, video, document, other
+    mime_type = db.Column(db.String(100), nullable=False)
+    size = db.Column(db.Integer, nullable=False)  # in bytes
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<MediaItem {self.filename}>'
+    
+    @property
+    def url(self):
+        return url_for('media.download_media', id=self.id)
+    
+    @property
+    def thumbnail_url(self):
+        if self.thumbnail_path:
+            return url_for('media.download_media', id=self.id, thumbnail=True)
+        return None
 
 # Association Tables
 post_tags = db.Table('post_tags',

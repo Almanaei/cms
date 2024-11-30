@@ -28,6 +28,10 @@ def create_app():
     from app.admin import bp as admin_bp
     app.register_blueprint(admin_bp, url_prefix='/admin')
 
+    # Register blueprints
+    from .admin import media
+    app.register_blueprint(media.bp, url_prefix='/admin')
+
     return app
 
 from app import models
