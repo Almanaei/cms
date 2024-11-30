@@ -248,7 +248,7 @@ function filterComments(status) {
 }
 
 function updateStatus(commentId, status) {
-    fetch(`{{ url_for('admin.comments') }}/${commentId}/status`, {
+    fetch(`/admin/comments/${commentId}/status`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -261,34 +261,17 @@ function updateStatus(commentId, status) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error updating comment status: ' + (data.error || 'Unknown error'));
+            alert('Failed to update comment status');
         }
     })
     .catch(error => {
-        alert('Error updating comment status: ' + error);
+        console.error('Error:', error);
+        alert('An error occurred while updating the comment status');
     });
 }
 
 function deleteComment(commentId) {
-    commentToDelete = commentId;
-    const modal = document.getElementById('deleteModal');
-    const comment = document.querySelector(`tr[data-comment-id="${commentId}"]`);
-    if (comment) {
-        const content = comment.querySelector('.comment-content').textContent;
-        modal.querySelector('.modal-body').innerHTML = `
-            Are you sure you want to delete this comment?<br><br>
-            <strong>Comment:</strong><br>
-            <div class="text-muted">${content}</div>
-            <br>This action cannot be undone.
-        `;
-    }
-    deleteModal.show();
-}
-
-function confirmDelete() {
-    if (!commentToDelete) return;
-    
-    fetch(`{{ url_for('admin.comments') }}/${commentToDelete}`, {
+    fetch(`/admin/comments/${commentId}`, {
         method: 'DELETE',
         headers: {
             'X-CSRFToken': '{{ csrf_token() }}'
@@ -299,13 +282,12 @@ function confirmDelete() {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error deleting comment: ' + (data.error || 'Unknown error'));
+            alert('Failed to delete comment');
         }
-        deleteModal.hide();
     })
     .catch(error => {
-        alert('Error deleting comment: ' + error);
-        deleteModal.hide();
+        console.error('Error:', error);
+        alert('An error occurred while deleting the comment');
     });
 }
 
@@ -315,7 +297,7 @@ function bulkAction(action) {
     
     if (!selectedComments.length) return;
 
-    fetch('{{ url_for("admin.bulk_action") }}', {
+    fetch('/admin/comments/bulk-action', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -331,11 +313,12 @@ function bulkAction(action) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error performing bulk action: ' + (data.error || 'Unknown error'));
+            alert('Failed to perform bulk action');
         }
     })
     .catch(error => {
-        alert('Error performing bulk action: ' + error);
+        console.error('Error:', error);
+        alert('An error occurred while performing the bulk action');
     });
 }
 </script>

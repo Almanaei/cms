@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('admin.index') }}">{{ Settings.get('site_name', 'CMS') }} Admin</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="adminNavbar">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.index') }}">View Site</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.index') }}">Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.posts') }}">Posts</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.categories') }}">Categories</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.media') }}">Media</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.users') }}">Users</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.settings') }}">Settings</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.analytics') }}">Analytics</a>
+                </li>
+            </ul>
+            <ul class="navbar-nav">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                        {{ current_user.username }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{{ url_for('admin.profile') }}">Profile</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Logout</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .admin-container {
+        display: flex;
+        min-height: calc(100vh - 56px);
+    }
+    .sidebar {
+        width: 250px;
+        background-color: #f8f9fa;
+        border-right: 1px solid #dee2e6;
+        padding: 1rem 0;
+    }
+    .sidebar-sticky {
+        position: sticky;
+        top: 1rem;
+    }
+    .sidebar .nav-link {
+        color: #333;
+        padding: 0.5rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .sidebar .nav-link:hover {
+        background-color: #e9ecef;
+    }
+    .sidebar .nav-link.active {
+        background-color: #e9ecef;
+        font-weight: 500;
+    }
+    .main-content {
+        flex: 1;
+        padding: 1rem;
+        background-color: #fff;
+    }
+    .nav-section {
+        margin-bottom: 1rem;
+    }
+    .nav-section-title {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #6c757d;
+        padding: 0.5rem 1rem;
+        margin-bottom: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            <div class="admin-container">
+                <div class="sidebar">
+                    <div class="sidebar-sticky">
+                        <!-- Content Management -->
+                        <div class="nav-section">
+                            <div class="nav-section-title">Content</div>
+                            <nav class="nav flex-column">
+                                <a class="nav-link {% if request.endpoint == 'admin.posts' %}active{% endif %}" 
+                                   href="{{ url_for('admin.posts') }}">
+                                    <i class="bi bi-file-text"></i> Posts
+                                </a>
+                                <a class="nav-link {% if request.endpoint == 'admin.categories' %}active{% endif %}" 
+                                   href="{{ url_for('admin.categories') }}">
+                                    <i class="bi bi-folder"></i> Categories
+                                </a>
+                                <a class="nav-link {% if request.endpoint == 'admin.comments' %}active{% endif %}" 
+                                   href="{{ url_for('admin.comments') }}">
+                                    <i class="bi bi-chat"></i> Comments
+                                </a>
+                                <a class="nav-link {% if request.endpoint == 'admin.media' %}active{% endif %}" 
+                                   href="{{ url_for('admin.media') }}">
+                                    <i class="bi bi-images"></i> Media
+                                </a>
+                            </nav>
+                        </div>
+
+                        <!-- User Management -->
+                        <div class="nav-section">
+                            <div class="nav-section-title">Users</div>
+                            <nav class="nav flex-column">
+                                <a class="nav-link {% if request.endpoint == 'admin.users' %}active{% endif %}" 
+                                   href="{{ url_for('admin.users') }}">
+                                    <i class="bi bi-people"></i> Users
+                                </a>
+                                <a class="nav-link {% if request.endpoint == 'admin.roles' %}active{% endif %}" 
+                                   href="{{ url_for('admin.roles') }}">
+                                    <i class="bi bi-person-badge"></i> Roles
+                                </a>
+                            </nav>
+                        </div>
+
+                        <!-- Analytics -->
+                        <div class="nav-section">
+                            <div class="nav-section-title">Analytics</div>
+                            <nav class="nav flex-column">
+                                <a class="nav-link {% if request.endpoint == 'admin.analytics' %}active{% endif %}" 
+                                   href="{{ url_for('admin.analytics') }}">
+                                    <i class="bi bi-graph-up"></i> Dashboard
+                                </a>
+                                <a class="nav-link {% if request.endpoint == 'admin.user_activity_list' %}active{% endif %}" 
+                                   href="{{ url_for('admin.user_activity_list') }}">
+                                    <i class="bi bi-clock-history"></i> User Activity
+                                </a>
+                            </nav>
+                        </div>
+
+                        <!-- System -->
+                        <div class="nav-section">
+                            <div class="nav-section-title">System</div>
+                            <nav class="nav flex-column">
+                                <a class="nav-link {% if request.endpoint == 'admin.settings' %}active{% endif %}" 
+                                   href="{{ url_for('admin.settings') }}">
+                                    <i class="bi bi-gear"></i> Settings
+                                </a>
+                                <a class="nav-link {% if request.endpoint == 'admin.backups' %}active{% endif %}" 
+                                   href="{{ url_for('admin.backups') }}">
+                                    <i class="bi bi-cloud-arrow-up"></i> Backups
+                                </a>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="main-content">
+                    {% block admin_content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Add Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+{% block admin_scripts %}{% endblock %}
+{% endblock %}

@@ -57,3 +57,8 @@ def register():
         return redirect(url_for('auth.login'))
     
     return render_template('auth/register.html')
+
+@bp.route('/profile')
+@login_required
+def profile():
+    return render_template('auth/profile.html')

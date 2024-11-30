@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Profile</h1>
+    <div class="card">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="text-center mb-3">
+                        <i class="bi bi-person-circle" style="font-size: 5rem;"></i>
+                    </div>
+                </div>
+                <div class="col-md-9">
+                    <h3>{{ current_user.username }}</h3>
+                    <p class="text-muted">{{ current_user.email }}</p>
+                    <hr>
+                    <div class="mb-3">
+                        <h5>Account Details</h5>
+                        <p><strong>Role:</strong> {{ current_user.role.name if current_user.role else 'User' }}</p>
+                        <p><strong>Member since:</strong> {{ current_user.created_at.strftime('%B %d, %Y') }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <h5>Activity</h5>
+                        <p><strong>Last login:</strong> {{ current_user.last_login.strftime('%B %d, %Y %H:%M') if current_user.last_login else 'Never' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

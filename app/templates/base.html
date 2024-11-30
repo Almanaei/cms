@@ -3,14 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}CMS{% endblock %}</title>
+    <title>{% block title %}{% endblock %} - {{ get_setting('site_name', 'CMS') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block styles %}{% endblock %}
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('main.index') }}">CMS</a>
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">{{ get_setting('site_name', 'CMS') }}</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -20,22 +22,80 @@
                         <a class="nav-link" href="{{ url_for('main.index') }}">Home</a>
                     </li>
                     {% if current_user.is_authenticated and current_user.is_admin %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.index') }}">Admin</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" 
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            Admin
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                            <li><h6 class="dropdown-header">Content</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.posts') }}">
+                                <i class="bi bi-file-text"></i> Posts
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.categories') }}">
+                                <i class="bi bi-folder"></i> Categories
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.comments') }}">
+                                <i class="bi bi-chat"></i> Comments
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.media') }}">
+                                <i class="bi bi-images"></i> Media
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Users</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.users') }}">
+                                <i class="bi bi-people"></i> Users
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.roles') }}">
+                                <i class="bi bi-person-badge"></i> Roles
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Analytics</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.analytics') }}">
+                                <i class="bi bi-graph-up"></i> Dashboard
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.user_activity_list') }}">
+                                <i class="bi bi-activity"></i> User Activity
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">System</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.settings') }}">
+                                <i class="bi bi-gear"></i> Settings
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.backups') }}">
+                                <i class="bi bi-cloud-arrow-up"></i> Backups
+                            </a></li>
+                        </ul>
                     </li>
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" 
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-person-circle"></i> {{ current_user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">
+                                <i class="bi bi-person"></i> Profile
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </a></li>
+                        </ul>
                     </li>
                     {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">
+                            <i class="bi bi-box-arrow-in-right"></i> Login
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
+                        <a class="nav-link" href="{{ url_for('auth.register') }}">
+                            <i class="bi bi-person-plus"></i> Register
+                        </a>
                     </li>
                     {% endif %}
                 </ul>

@@ -13,7 +13,10 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # File Upload Config
-    UPLOAD_FOLDER = os.path.join(basedir, 'app/static/uploads')
+    UPLOAD_FOLDER = os.path.join(basedir, 'app', 'static', 'uploads')
+    BACKUP_DIR = os.path.join(basedir, 'backups')
+    BACKUP_FILE_PREFIX = 'backup_'
+    MAX_BACKUPS = 10  # Maximum number of backups to keep
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
     

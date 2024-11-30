@@ -1,0 +1,141 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Settings - Admin{% endblock %}
+
+{% block admin_content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Site Settings</h2>
+            <p class="text-muted">Configure your site settings</p>
+        </div>
+        <div class="btn-group">
+            <a href="{{ url_for('admin.export_settings') }}" class="btn btn-outline-primary">
+                <i class="bi bi-download"></i> Export Settings
+            </a>
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importSettingsModal">
+                <i class="bi bi-upload"></i> Import Settings
+            </button>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSettingModal">
+                <i class="bi bi-plus"></i> Add Setting
+            </button>
+        </div>
+    </div>
+
+    <form id="settingsForm" method="POST" action="{{ url_for('admin.settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="row">
+            {% for setting in settings %}
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h5 class="card-title">{{ setting.key|replace('_', ' ')|title }}</h5>
+                                <p class="text-muted small">{{ setting.description }}</p>
+                            </div>
+                            {% if setting.key not in ['site_name', 'items_per_page', 'enable_comments'] %}
+                            <button type="button" class="btn btn-danger btn-sm delete-setting" data-setting-id="{{ setting.id }}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                        
+                        {% if setting.type == 'boolean' %}
+                        <div class="form-check form-switch">
+                            <input type="hidden" name="setting_{{ setting.key }}" value="false">
+                            <input type="checkbox" class="form-check-input" name="setting_{{ setting.key }}"
+                                   id="setting_{{ setting.key }}" value="true" 
+                                   {% if setting.value and setting.value.lower() in ('true', '1', 'yes', 'on') %}checked{% endif %}>
+                            <label class="form-check-label" for="setting_{{ setting.key }}">Enabled</label>
+                        </div>
+                        {% elif setting.type == 'number' %}
+                        <input type="number" class="form-control" name="setting_{{ setting.key }}"
+                               id="setting_{{ setting.key }}" value="{{ setting.value }}" step="any">
+                        {% else %}
+                        <input type="text" class="form-control" name="setting_{{ setting.key }}"
+                               id="setting_{{ setting.key }}" value="{{ setting.value }}">
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="text-end mt-4 mb-4">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+    </form>
+</div>
+
+<!-- Add Setting Modal -->
+<div class="modal fade" id="addSettingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Setting</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addSettingForm" method="POST" action="{{ url_for('admin.settings') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="settingKey" class="form-label">Key</label>
+                        <input type="text" class="form-control" id="settingKey" name="setting_key" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="settingValue" class="form-label">Value</label>
+                        <input type="text" class="form-control" id="settingValue" name="setting_value" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="settingDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="settingDescription" name="setting_description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="settingType" class="form-label">Type</label>
+                        <select class="form-select" id="settingType" name="setting_type">
+                            <option value="text">Text</option>
+                            <option value="number">Number</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="json">JSON</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" form="addSettingForm" class="btn btn-primary">Add Setting</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Settings Modal -->
+<div class="modal fade" id="importSettingsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Import Settings</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importSettingsForm" method="POST" action="{{ url_for('admin.import_settings') }}" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="settingsFile" class="form-label">Settings File (JSON)</label>
+                        <input type="file" class="form-control" id="settingsFile" name="settings_file" accept="application/json" required>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Critical system settings will not be overwritten during import.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" form="importSettingsForm" class="btn btn-primary">Import Settings</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

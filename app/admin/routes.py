@@ -1,12 +1,14 @@
 import os
-from flask import render_template, redirect, url_for, flash, request, current_app, jsonify
+from flask import render_template, redirect, url_for, flash, request, current_app, jsonify, send_file
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db
 from app.admin import bp
-from app.models import Post, Category, User, MediaItem, Tag, Role, Comment, UserActivity
+from app.models import Post, Category, User, MediaItem, Tag, Role, Comment, UserActivity, Settings, BackupSchedule, Backup, PageView
 from functools import wraps
 from datetime import datetime
+import json
+import shutil
 
 def admin_required(f):
     @wraps(f)
@@ -71,6 +73,14 @@ def create_post():
         
         db.session.add(post)
         db.session.commit()
+        
+        # Record activity
+        UserActivity.record(
+            current_user,
+            'create_post',
+            f'Created post: {post.title}'
+        )
+        
         flash('Post created successfully!', 'success')
         return redirect(url_for('admin.posts'))
     
@@ -370,22 +380,427 @@ def delete_user(id):
     flash('User deleted successfully!', 'success')
     return redirect(url_for('admin.users'))
 
-@bp.route('/user/<int:id>/activity')
+@bp.route('/user-activity')
 @login_required
-@permission_required(Role.MANAGE_USERS)
-def user_activity(id):
+@admin_required
+def user_activity_list():
+    page = request.args.get('page', 1, type=int)
+    activities = UserActivity.query.order_by(UserActivity.created_at.desc()).paginate(
+        page=page, per_page=20, error_out=False)
+    return render_template('admin/user_activity.html', activities=activities)
+
+@bp.route('/user-activity/<int:id>')
+@login_required
+@admin_required
+def user_activity_detail(id):
     user = User.query.get_or_404(id)
     page = request.args.get('page', 1, type=int)
-    activities = user.activities.order_by(UserActivity.created_at.desc()).paginate(
-        page=page, per_page=50, error_out=False)
-    return render_template('admin/user_activity.html', user=user, activities=activities)
+    activities = UserActivity.query.filter_by(user_id=id).order_by(
+        UserActivity.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
+    return render_template('admin/user_activity_detail.html', user=user, activities=activities)
 
 @bp.route('/roles')
 @login_required
 @permission_required(Role.MANAGE_ROLES)
 def roles():
     roles = Role.query.all()
-    return render_template('admin/roles.html', roles=roles)
+    available_permissions = [
+        {'id': Role.VIEW_DASHBOARD, 'name': 'View Dashboard'},
+        {'id': Role.MANAGE_POSTS, 'name': 'Manage Posts'},
+        {'id': Role.MANAGE_USERS, 'name': 'Manage Users'},
+        {'id': Role.MANAGE_ROLES, 'name': 'Manage Roles'},
+        {'id': Role.MANAGE_SETTINGS, 'name': 'Manage Settings'},
+        {'id': Role.MANAGE_MEDIA, 'name': 'Manage Media'},
+        {'id': Role.MODERATE_COMMENTS, 'name': 'Moderate Comments'}
+    ]
+    return render_template('admin/roles.html', roles=roles, available_permissions=available_permissions)
+
+@bp.route('/comments')
+@login_required
+@admin_required
+def comments():
+    page = request.args.get('page', 1, type=int)
+    comments = Comment.query.order_by(Comment.created_at.desc()).paginate(
+        page=page, per_page=20, error_out=False)
+    return render_template('admin/comments.html', comments=comments)
+
+@bp.route('/analytics')
+@login_required
+@admin_required
+def analytics():
+    from sqlalchemy import func
+    from datetime import datetime, timedelta
+    
+    # Get time ranges
+    now = datetime.utcnow()
+    last_30_days = now - timedelta(days=30)
+    last_60_days = now - timedelta(days=60)
+    
+    # Get total views and growth
+    current_views = PageView.query.filter(PageView.created_at >= last_30_days).count()
+    previous_views = PageView.query.filter(
+        PageView.created_at >= last_60_days,
+        PageView.created_at < last_30_days
+    ).count()
+    view_growth = ((current_views - previous_views) / (previous_views or 1)) * 100
+
+    # Get active users and growth
+    current_active_users = User.query.filter(
+        User.last_seen >= last_30_days,
+        User.is_active == True
+    ).count()
+    previous_active_users = User.query.filter(
+        User.last_seen >= last_60_days,
+        User.last_seen < last_30_days,
+        User.is_active == True
+    ).count()
+    user_growth = ((current_active_users - previous_active_users) / (previous_active_users or 1)) * 100
+
+    # Get total content and growth
+    current_content = Post.query.filter(
+        Post.created_at >= last_30_days,
+        Post.published == True
+    ).count()
+    previous_content = Post.query.filter(
+        Post.created_at >= last_60_days,
+        Post.created_at < last_30_days,
+        Post.published == True
+    ).count()
+    content_growth = ((current_content - previous_content) / (previous_content or 1)) * 100
+
+    # Get engagement metrics
+    current_engagement = Comment.query.filter(
+        Comment.created_at >= last_30_days
+    ).count()
+    previous_engagement = Comment.query.filter(
+        Comment.created_at >= last_60_days,
+        Comment.created_at < last_30_days
+    ).count()
+    engagement_growth = ((current_engagement - previous_engagement) / (previous_engagement or 1)) * 100
+    
+    # Calculate engagement rate
+    total_posts = Post.query.filter(Post.published == True).count()
+    engagement_rate = (current_engagement / (total_posts or 1)) * 100
+
+    # Get top posts by views
+    top_posts = db.session.query(
+        Post,
+        func.count(PageView.id).label('views')
+    ).join(
+        PageView, PageView.path.like(func.concat('/post/%', Post.slug))
+    ).filter(
+        Post.published == True,
+        PageView.created_at >= last_30_days
+    ).group_by(
+        Post.id
+    ).order_by(
+        func.count(PageView.id).desc()
+    ).limit(5).all()
+
+    # Get traffic data for chart
+    traffic_data = []
+    for i in range(30, -1, -1):
+        date = now - timedelta(days=i)
+        views = PageView.query.filter(
+            PageView.created_at >= date.replace(hour=0, minute=0, second=0),
+            PageView.created_at < (date + timedelta(days=1)).replace(hour=0, minute=0, second=0)
+        ).count()
+        traffic_data.append({
+            'date': date.strftime('%Y-%m-%d'),
+            'views': views
+        })
+
+    # Get recent user activity
+    recent_activities = UserActivity.query.order_by(
+        UserActivity.created_at.desc()
+    ).limit(5).all()
+
+    return render_template('admin/analytics.html',
+                         total_views=current_views,
+                         view_growth=round(view_growth, 1),
+                         active_users=current_active_users,
+                         user_growth=round(user_growth, 1),
+                         total_content=total_posts,
+                         content_growth=round(content_growth, 1),
+                         engagement_rate=round(engagement_rate, 1),
+                         engagement_growth=round(engagement_growth, 1),
+                         recent_activities=recent_activities,
+                         top_posts=top_posts,
+                         traffic_data=traffic_data)
+
+@bp.route('/settings', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def settings():
+    if request.method == 'POST':
+        for key, value in request.form.items():
+            if key.startswith('setting_'):
+                setting_key = key.replace('setting_', '')
+                setting = Settings.query.filter_by(key=setting_key).first()
+                if setting:
+                    # Convert value based on setting type
+                    if setting.type == 'boolean':
+                        value = value.lower() in ('true', '1', 'yes', 'on')
+                    elif setting.type == 'integer':
+                        try:
+                            value = int(float(value))
+                        except ValueError:
+                            value = 0
+                    elif setting.type == 'float':
+                        try:
+                            value = float(value)
+                        except ValueError:
+                            value = 0.0
+                            
+                    Settings.set(setting_key, value, setting.type)
+
+        flash('Settings updated successfully.', 'success')
+        return redirect(url_for('admin.settings'))
+
+    # Get all settings
+    all_settings = Settings.query.all()
+    return render_template('admin/settings.html', settings=all_settings)
+
+@bp.route('/settings/delete/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_setting(id):
+    """Delete a setting."""
+    setting = Settings.query.get_or_404(id)
+    
+    # Don't allow deletion of critical settings
+    critical_settings = ['site_name', 'items_per_page', 'enable_comments']
+    if setting.key in critical_settings:
+        flash('Cannot delete critical system setting.', 'error')
+        return redirect(url_for('admin.settings'))
+    
+    db.session.delete(setting)
+    db.session.commit()
+    flash('Setting deleted successfully.', 'success')
+    return redirect(url_for('admin.settings'))
+
+@bp.route('/settings/export')
+@login_required
+@admin_required
+def export_settings():
+    """Export all settings as JSON."""
+    settings = Settings.query.all()
+    settings_data = [{
+        'key': setting.key,
+        'value': setting.value,
+        'type': setting.type,
+        'description': setting.description
+    } for setting in settings]
+    
+    return jsonify({
+        'settings': settings_data,
+        'exported_at': datetime.utcnow().isoformat(),
+        'version': '1.0'
+    })
+
+@bp.route('/settings/import', methods=['POST'])
+@login_required
+@admin_required
+def import_settings():
+    """Import settings from JSON."""
+    if 'settings_file' not in request.files:
+        flash('No file uploaded.', 'error')
+        return redirect(url_for('admin.settings'))
+        
+    file = request.files['settings_file']
+    if file.filename == '':
+        flash('No file selected.', 'error')
+        return redirect(url_for('admin.settings'))
+        
+    try:
+        settings_data = json.loads(file.read())
+        if 'settings' not in settings_data:
+            raise ValueError('Invalid settings file format')
+            
+        for setting_item in settings_data['settings']:
+            key = setting_item['key']
+            value = setting_item['value']
+            type = setting_item.get('type', 'text')
+            description = setting_item.get('description', '')
+            
+            # Don't override critical settings
+            if key in ['site_name', 'items_per_page', 'enable_comments']:
+                continue
+                
+            setting = Settings.query.filter_by(key=key).first()
+            if setting:
+                setting.value = value
+                setting.type = type
+                setting.description = description
+            else:
+                setting = Settings(key=key, value=value, type=type, description=description)
+                db.session.add(setting)
+        
+        db.session.commit()
+        Settings.clear_cache()  # Clear the entire cache after bulk import
+        flash('Settings imported successfully.', 'success')
+        
+    except (json.JSONDecodeError, ValueError, KeyError) as e:
+        flash(f'Error importing settings: {str(e)}', 'error')
+        
+    return redirect(url_for('admin.settings'))
+
+@bp.route('/backups')
+@login_required
+@admin_required
+def backups():
+    """Display and manage backups."""
+    from app.models import BackupSchedule, Backup
+    
+    schedule = BackupSchedule.get_schedule()
+    backups_list = Backup.query.order_by(Backup.created_at.desc()).all()
+    
+    return render_template('admin/backups.html',
+                         schedule=schedule,
+                         backups=backups_list)
+
+@bp.route('/backups/create', methods=['POST'])
+@login_required
+@admin_required
+def create_backup():
+    """Create a new backup."""
+    import shutil
+    from datetime import datetime
+    
+    # Ensure backup directory exists
+    if not os.path.exists(current_app.config['BACKUP_DIR']):
+        os.makedirs(current_app.config['BACKUP_DIR'])
+    
+    # Create backup record
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    filename = f"{current_app.config['BACKUP_FILE_PREFIX']}{timestamp}.db"
+    backup = Backup(
+        filename=filename,
+        type='manual',
+        note=request.form.get('note', '')
+    )
+    db.session.add(backup)
+    db.session.commit()
+    
+    try:
+        # Get the database file path
+        db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+        if not db_path.startswith('/'):  # Relative path
+            db_path = os.path.join(current_app.root_path, '..', db_path)
+        
+        backup_path = os.path.join(current_app.config['BACKUP_DIR'], filename)
+        
+        # Ensure the source database exists
+        if not os.path.exists(db_path):
+            raise FileNotFoundError(f"Database file not found at {db_path}")
+        
+        # Copy the database file
+        shutil.copy2(db_path, backup_path)
+        
+        # Update backup record
+        backup.status = 'completed'
+        backup.completed_at = datetime.utcnow()
+        backup.size = os.path.getsize(backup_path)
+        db.session.commit()
+        
+        # Clean up old backups if needed
+        cleanup_old_backups()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Backup created successfully',
+            'backup': {
+                'id': backup.id,
+                'filename': backup.filename,
+                'created_at': backup.created_at.isoformat(),
+                'size': backup.size
+            }
+        })
+        
+    except Exception as e:
+        backup.status = 'failed'
+        backup.note = str(e)
+        db.session.commit()
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to create backup: {str(e)}'
+        }), 500
+
+@bp.route('/backups/<int:id>/download')
+@login_required
+@admin_required
+def download_backup(id):
+    """Download a backup file."""
+    backup = Backup.query.get_or_404(id)
+    
+    if not os.path.exists(backup.filepath):
+        flash('Backup file not found.', 'error')
+        return redirect(url_for('admin.backups'))
+    
+    return send_file(
+        backup.filepath,
+        as_attachment=True,
+        download_name=backup.filename
+    )
+
+@bp.route('/backups/<int:id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_backup(id):
+    """Delete a backup."""
+    backup = Backup.query.get_or_404(id)
+    
+    try:
+        # Delete the file
+        backup.delete_file()
+        
+        # Delete the record
+        db.session.delete(backup)
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Backup deleted successfully'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to delete backup: {str(e)}'
+        }), 500
+
+def cleanup_old_backups():
+    """Remove old backups if we exceed the maximum allowed."""
+    max_backups = current_app.config.get('MAX_BACKUPS', 10)
+    backups = Backup.query.order_by(Backup.created_at.desc()).all()
+    
+    if len(backups) > max_backups:
+        for backup in backups[max_backups:]:
+            backup.delete_file()
+            db.session.delete(backup)
+        
+        db.session.commit()
+
+@bp.route('/backups/schedule', methods=['POST'])
+@login_required
+@admin_required
+def update_backup_schedule():
+    """Update backup schedule settings."""
+    from app.models import BackupSchedule
+    
+    schedule = BackupSchedule.get_schedule()
+    schedule.frequency = request.form.get('frequency', 'daily')
+    schedule.time = request.form.get('time', '00:00')
+    schedule.retention = int(request.form.get('retention', 30))
+    schedule.notify_on_failure = request.form.get('notify_on_failure') == 'true'
+    schedule.enabled = True
+    
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'message': 'Backup schedule updated successfully'
+    })
 
 @bp.route('/comments/bulk-action', methods=['POST'])
 @login_required

@@ -2,11 +2,14 @@ from datetime import datetime
 import jwt
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
-from flask import current_app
+from flask import current_app, request
 from app import db, login_manager
 from slugify import slugify
 from datetime import timedelta
 from flask import url_for
+from sqlalchemy import event
+import os
+import json
 
 @login_manager.user_loader
 def load_user(id):
@@ -64,6 +67,25 @@ class Role(db.Model):
     
     def has_permission(self, perm):
         return self.permissions & perm == perm
+    
+    def get_permissions_list(self):
+        """Convert bitwise permissions to list of permission names."""
+        permissions_list = []
+        if self.has_permission(self.VIEW_DASHBOARD):
+            permissions_list.append('View Dashboard')
+        if self.has_permission(self.MANAGE_POSTS):
+            permissions_list.append('Manage Posts')
+        if self.has_permission(self.MANAGE_USERS):
+            permissions_list.append('Manage Users')
+        if self.has_permission(self.MANAGE_ROLES):
+            permissions_list.append('Manage Roles')
+        if self.has_permission(self.MANAGE_SETTINGS):
+            permissions_list.append('Manage Settings')
+        if self.has_permission(self.MANAGE_MEDIA):
+            permissions_list.append('Manage Media')
+        if self.has_permission(self.MODERATE_COMMENTS):
+            permissions_list.append('Moderate Comments')
+        return permissions_list
 
 class UserActivity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -72,6 +94,26 @@ class UserActivity(db.Model):
     details = db.Column(db.Text)
     ip_address = db.Column(db.String(45))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('activities', lazy='dynamic'))
+    
+    @staticmethod
+    def record(user, action, details=None):
+        """Record a user activity."""
+        try:
+            activity = UserActivity(
+                user_id=user.id,
+                action=action,
+                details=details,
+                ip_address=request.remote_addr if request else None
+            )
+            db.session.add(activity)
+            db.session.commit()
+            return activity
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Error recording user activity: {str(e)}')
+            return None
     
     def __repr__(self):
         return f'<UserActivity {self.action}>'
@@ -104,8 +146,7 @@ class User(UserMixin, db.Model):
     posts = db.relationship('Post', backref='author', lazy='dynamic')
     comments = db.relationship('Comment', backref='author', lazy='dynamic')
     likes = db.relationship('Like', backref='user', lazy='dynamic')
-    activities = db.relationship('UserActivity', backref='user', lazy='dynamic')
-    page_views = db.relationship('PageView', backref='viewer', lazy='dynamic')
+    page_views = db.relationship('PageView', back_populates='user', lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -186,7 +227,7 @@ class Post(db.Model):
     comments = db.relationship('Comment', backref='post', lazy='dynamic')
     tags = db.relationship('Tag', secondary='post_tags', backref=db.backref('posts', lazy='dynamic'))
     likes = db.relationship('Like', backref='post', lazy='dynamic')
-    page_views = db.relationship('PageView', backref='viewed_post', lazy='dynamic')
+    page_views = db.relationship('PageView', back_populates='post', lazy='dynamic')
 
     def __init__(self, *args, **kwargs):
         if not kwargs.get('slug') and kwargs.get('title'):
@@ -291,22 +332,162 @@ class MediaItem(db.Model):
         return None
 
 class PageView(db.Model):
-    """Model for tracking page views and analytics"""
     id = db.Column(db.Integer, primary_key=True)
+    path = db.Column(db.String(500), nullable=False)
+    ip_address = db.Column(db.String(45))
+    user_agent = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    ip_address = db.Column(db.String(45))
-    user_agent = db.Column(db.String(255))
-    referrer = db.Column(db.String(255))
-    duration = db.Column(db.Integer, default=0)  # Duration in seconds
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Define relationships without backrefs to avoid conflicts
-    post = db.relationship('Post')
-    user = db.relationship('User')
+    post = db.relationship('Post', back_populates='page_views')
+    user = db.relationship('User', back_populates='page_views')
 
-    def __repr__(self):
-        return f'<PageView {self.id}>'
+    @staticmethod
+    def record(path, ip_address=None, user_agent=None, user=None):
+        view = PageView(
+            path=path,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            user_id=user.id if user else None
+        )
+        # Extract post_id from path if it's a post view
+        if path.startswith('/post/'):
+            slug = path.split('/post/')[-1]
+            post = Post.query.filter_by(slug=slug).first()
+            if post:
+                view.post_id = post.id
+        
+        try:
+            db.session.add(view)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Failed to record page view: {str(e)}")
+
+class BackupSchedule(db.Model):
+    """Model for backup schedule settings."""
+    id = db.Column(db.Integer, primary_key=True)
+    frequency = db.Column(db.String(20), default='daily')  # daily, weekly, monthly
+    time = db.Column(db.String(5), default='00:00')  # 24-hour format HH:MM
+    retention = db.Column(db.Integer, default=30)  # days to keep backups
+    notify_on_failure = db.Column(db.Boolean, default=True)
+    enabled = db.Column(db.Boolean, default=True)
+    last_run = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @staticmethod
+    def get_schedule():
+        """Get the current backup schedule or create a default one."""
+        schedule = BackupSchedule.query.first()
+        if not schedule:
+            schedule = BackupSchedule()
+            db.session.add(schedule)
+            db.session.commit()
+        return schedule
+
+class Backup(db.Model):
+    """Model for database backups."""
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), nullable=False)
+    size = db.Column(db.Integer)  # Size in bytes
+    type = db.Column(db.String(50), default='manual')  # manual, scheduled
+    status = db.Column(db.String(50), default='pending')  # pending, completed, failed
+    note = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime)
+
+    @property
+    def filepath(self):
+        """Get the full path to the backup file."""
+        return os.path.join(current_app.config['BACKUP_DIR'], self.filename)
+    
+    def delete_file(self):
+        """Delete the backup file from disk."""
+        if os.path.exists(self.filepath):
+            os.remove(self.filepath)
+
+class Settings(db.Model):
+    __tablename__ = 'settings'
+    
+    # Class-level cache
+    _cache = {}
+    
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(50), unique=True, nullable=False)
+    value = db.Column(db.String(500))
+    type = db.Column(db.String(20), default='string')
+    description = db.Column(db.String(200))
+
+    @staticmethod
+    def get(key, default=None):
+        """Get a setting value by key."""
+        setting = Settings.query.filter_by(key=key).first()
+        if setting is None:
+            return default
+            
+        try:
+            if setting.type == 'boolean':
+                return setting.value.lower() in ('true', '1', 'yes', 'on')
+            elif setting.type == 'integer':
+                # Handle float strings by converting to float first then to int
+                return int(float(setting.value))
+            elif setting.type == 'float':
+                return float(setting.value)
+            elif setting.type == 'json':
+                return json.loads(setting.value)
+            else:  # string
+                return setting.value
+        except (ValueError, json.JSONDecodeError) as e:
+            current_app.logger.error(f"Error converting setting {key}: {str(e)}")
+            return default
+
+    @staticmethod
+    def set(key, value, type='string', description=None):
+        """Set a setting value."""
+        setting = Settings.query.filter_by(key=key).first()
+        
+        # Convert value to string based on type
+        if isinstance(value, bool):
+            str_value = str(value).lower()
+            type = 'boolean'
+        elif isinstance(value, (int, float)):
+            str_value = str(value)
+            type = 'float' if isinstance(value, float) else 'integer'
+        elif isinstance(value, (dict, list)):
+            str_value = json.dumps(value)
+            type = 'json'
+        else:
+            str_value = str(value)
+            type = 'string'
+
+        if setting is None:
+            setting = Settings(key=key, value=str_value, type=type, description=description)
+            db.session.add(setting)
+        else:
+            setting.value = str_value
+            setting.type = type
+            if description:
+                setting.description = description
+
+        try:
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error saving setting {key}: {str(e)}")
+            return False
+
+# Settings model event listeners
+@event.listens_for(Settings, 'after_update')
+def receive_after_update(mapper, connection, target):
+    """Clear cache entry when a setting is updated."""
+    Settings._cache.pop(target.key, None)
+
+@event.listens_for(Settings, 'after_delete')
+def receive_after_delete(mapper, connection, target):
+    """Clear cache entry when a setting is deleted."""
+    Settings._cache.pop(target.key, None)
 
 # Association Tables
 post_tags = db.Table('post_tags',
