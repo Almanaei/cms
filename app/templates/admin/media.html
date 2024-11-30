@@ -102,9 +102,12 @@
                         <div class="card-body">
                             <h6 class="card-title">Storage Usage</h6>
                             <div class="progress mb-2">
-                                <div class="progress-bar" role="progressbar" style="width: {{ storage_usage_percent }}%"
-                                     aria-valuenow="{{ storage_usage_percent }}" aria-valuemin="0" aria-valuemax="100">
-                                    {{ storage_usage_percent }}%
+                                <div class="progress-bar" role="progressbar" 
+                                     style="width: {% if storage_usage_percent %}{{ storage_usage_percent }}{% else %}0{% endif %}%"
+                                     aria-valuenow="{% if storage_usage_percent %}{{ storage_usage_percent }}{% else %}0{% endif %}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                    {% if storage_usage_percent %}{{ storage_usage_percent|round(1) }}{% else %}0{% endif %}%
                                 </div>
                             </div>
                             <small class="text-muted">
