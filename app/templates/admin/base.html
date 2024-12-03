@@ -2,8 +2,9 @@
 
 {% block title %}Admin Panel{% endblock %}
 
-{% block navbar %}
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+{% block content %}
+<!-- Top Navigation Bar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
     <div class="container-fluid">
         <a class="navbar-brand" href="{{ url_for('admin.index') }}">{{ Settings.get('site_name', 'CMS') }} Admin</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar">
@@ -14,29 +15,18 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('main.index') }}">View Site</a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.index') }}">Dashboard</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.posts') }}">Posts</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.categories') }}">Categories</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.media') }}">Media</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.users') }}">Users</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.settings') }}">Settings</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.analytics') }}">Analytics</a>
-                </li>
             </ul>
             <ul class="navbar-nav">
+                <!-- Theme Switcher -->
+                <li class="nav-item">
+                    <div class="theme-switcher nav-link">
+                        <i class="bi bi-sun-fill" id="lightIcon"></i>
+                        <div class="form-check form-switch d-inline-block">
+                            <input class="form-check-input" type="checkbox" id="themeSwitcher">
+                        </div>
+                        <i class="bi bi-moon-fill" id="darkIcon"></i>
+                    </div>
+                </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
                         {{ current_user.username }}
@@ -51,13 +41,12 @@
         </div>
     </div>
 </nav>
-{% endblock %}
 
-{% block content %}
+<!-- Page Container -->
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar -->
-        <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+        <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
             <div class="position-sticky pt-3">
                 <ul class="nav flex-column">
                     <li class="nav-item">
@@ -73,6 +62,11 @@
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'admin.categories' }}" href="{{ url_for('admin.categories') }}">
                             <i class="bi bi-folder"></i> Categories
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'admin.media' }}" href="{{ url_for('admin.media') }}">
+                            <i class="bi bi-images"></i> Media
                         </a>
                     </li>
                     <li class="nav-item">
@@ -117,7 +111,43 @@
 
 {% block styles %}
 {{ super() }}
-<style>
+<style> 
+
+.theme-switcher {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.theme-switcher i {
+    font-size: 1.2rem;
+}
+
+#lightIcon {
+    color: #ffd700;
+}
+
+#darkIcon {
+    color: #6c757d;
+}
+
+/* Dark mode styles */
+[data-bs-theme="dark"] .sidebar {
+    background-color: #212529 !important;
+}
+
+[data-bs-theme="dark"] .sidebar .nav-link {
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .sidebar .nav-link:hover {
+    color: #0d6efd;
+}
+
+[data-bs-theme="dark"] #darkIcon {
+    color: #fff;
+}
 /* Sidebar */
 .sidebar {
     position: fixed;
@@ -152,7 +182,7 @@
 }
 
 /* Main content */
-.ms-sm-auto {
+main {
     margin-top: 56px;
 }
 
@@ -174,6 +204,27 @@
 {% block scripts %}
 {{ super() }}
 <script>
+
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const themeSwitcher = document.getElementById('themeSwitcher');
+        const htmlElement = document.documentElement;
+        
+        // Check for saved theme preference
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            htmlElement.setAttribute('data-bs-theme', savedTheme);
+            themeSwitcher.checked = savedTheme === 'dark';
+        }
+        
+        // Theme switcher functionality
+        themeSwitcher.addEventListener('change', function() {
+            const theme = this.checked ? 'dark' : 'light';
+            htmlElement.setAttribute('data-bs-theme', theme);
+            localStorage.setItem('theme', theme);
+        });
+    });
+
 document.addEventListener('DOMContentLoaded', function() {
     // Close mobile sidebar when clicking outside
     document.addEventListener('click', function(e) {
