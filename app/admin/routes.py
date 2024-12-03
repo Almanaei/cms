@@ -9,6 +9,7 @@ from functools import wraps
 from datetime import datetime
 import json
 import shutil
+from app.forms import PostForm  # Import PostForm
 
 def admin_required(f):
     @wraps(f)
@@ -55,37 +56,53 @@ def posts():
 @login_required
 @admin_required
 def create_post():
-    if request.method == 'POST':
-        post = Post(
-            title=request.form['title'],
-            content=request.form['content'],
-            category_id=request.form.get('category_id'),
-            user_id=current_user.id,
-            published=request.form.get('published') == 'on'
-        )
+    form = PostForm()
+    
+    # Set category choices
+    categories = Category.query.order_by(Category.name).all()
+    form.category_id.choices = [(c.id, c.name) for c in categories]
+    
+    if form.validate_on_submit():
+        post = Post()
+        form.populate_obj(post)
+        post.user_id = current_user.id
         
-        if 'featured_image' in request.files:
-            file = request.files['featured_image']
+        # Handle scheduling
+        if form.schedule.data:
+            if form.scheduled_date.data and form.scheduled_time.data:
+                post.published_at = datetime.strptime(
+                    f"{form.scheduled_date.data} {form.scheduled_time.data}", 
+                    "%Y-%m-%d %H:%M"
+                )
+        else:
+            post.published_at = datetime.utcnow() if post.published else None
+            
+        # Handle featured image
+        if form.featured_image.data:
+            file = form.featured_image.data
             if file.filename:
                 filename = secure_filename(file.filename)
                 file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
                 post.featured_image = filename
         
+        # Handle tags
+        if form.tags.data:
+            tags = form.tags.data.split(',')
+            for tag_name in tags:
+                tag_name = tag_name.strip()
+                if tag_name:
+                    tag = Tag.query.filter_by(name=tag_name).first()
+                    if not tag:
+                        tag = Tag(name=tag_name)
+                    post.tags.append(tag)
+        
         db.session.add(post)
         db.session.commit()
         
-        # Record activity
-        UserActivity.record(
-            current_user,
-            'create_post',
-            f'Created post: {post.title}'
-        )
-        
         flash('Post created successfully!', 'success')
         return redirect(url_for('admin.posts'))
-    
-    categories = Category.query.all()
-    return render_template('admin/create_post.html', categories=categories)
+        
+    return render_template('admin/edit_post.html', form=form)
 
 @bp.route('/categories')
 @login_required
@@ -258,49 +275,75 @@ def delete_media(id):
 @admin_required
 def edit_post(id):
     post = Post.query.get_or_404(id)
-    if request.method == 'POST':
-        post.title = request.form['title']
-        post.content = request.form['content']
-        post.summary = request.form['summary']
-        post.meta_title = request.form['meta_title']
-        post.meta_description = request.form['meta_description']
-        post.category_id = request.form.get('category_id')
-        post.published = request.form.get('published') == 'on'
+    form = PostForm(obj=post)
+    
+    # Set category choices
+    categories = Category.query.order_by(Category.name).all()
+    form.category_id.choices = [(c.id, c.name) for c in categories]
+    
+    if form.validate_on_submit():
+        # Update post fields from form
+        post.title = form.title.data
+        post.slug = form.slug.data
+        post.content = form.content.data
+        post.summary = form.summary.data
+        post.meta_title = form.meta_title.data
+        post.meta_description = form.meta_description.data
+        post.category_id = form.category_id.data
+        post.published = form.published.data
         
         # Handle scheduling
-        if request.form.get('schedule') == 'on':
-            scheduled_date = request.form.get('scheduled_date')
-            scheduled_time = request.form.get('scheduled_time')
-            if scheduled_date and scheduled_time:
-                post.published_at = datetime.strptime(f"{scheduled_date} {scheduled_time}", "%Y-%m-%d %H:%M")
+        if form.schedule.data:
+            if form.scheduled_date.data and form.scheduled_time.data:
+                post.published_at = datetime.strptime(
+                    f"{form.scheduled_date.data} {form.scheduled_time.data}", 
+                    "%Y-%m-%d %H:%M"
+                )
         else:
             post.published_at = datetime.utcnow() if post.published else None
             
         # Handle featured image
-        if 'featured_image' in request.files:
-            file = request.files['featured_image']
+        if form.featured_image.data:
+            file = form.featured_image.data
             if file.filename:
                 filename = secure_filename(file.filename)
                 file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
                 post.featured_image = filename
         
         # Handle tags
-        tags = request.form.get('tags', '').split(',')
-        post.tags = []
-        for tag_name in tags:
-            tag_name = tag_name.strip()
-            if tag_name:
-                tag = Tag.query.filter_by(name=tag_name).first()
-                if not tag:
-                    tag = Tag(name=tag_name)
-                post.tags.append(tag)
+        if form.tags.data:
+            tags = form.tags.data.split(',')
+            post.tags = []
+            for tag_name in tags:
+                tag_name = tag_name.strip()
+                if tag_name:
+                    tag = Tag.query.filter_by(name=tag_name).first()
+                    if not tag:
+                        tag = Tag(name=tag_name)
+                    post.tags.append(tag)
         
         db.session.commit()
         flash('Post updated successfully!', 'success')
         return redirect(url_for('admin.posts'))
+    
+    # Pre-fill form fields for GET request
+    if request.method == 'GET':
+        form.title.data = post.title
+        form.slug.data = post.slug
+        form.content.data = post.content
+        form.summary.data = post.summary
+        form.meta_title.data = post.meta_title
+        form.meta_description.data = post.meta_description
+        form.category_id.data = post.category_id
+        form.published.data = post.published
+        form.tags.data = ', '.join(tag.name for tag in post.tags)
         
-    categories = Category.query.all()
-    return render_template('admin/edit_post.html', post=post, categories=categories)
+        if post.published_at and post.published_at > datetime.utcnow():
+            form.schedule.data = True
+            form.scheduled_date.data = post.published_at.strftime('%Y-%m-%d')
+            form.scheduled_time.data = post.published_at.strftime('%H:%M')
+    
+    return render_template('admin/edit_post.html', form=form, post=post)
 
 @bp.route('/post/<int:id>/preview')
 @login_required
@@ -319,14 +362,81 @@ def delete_post(id):
     flash('Post deleted successfully!', 'success')
     return redirect(url_for('admin.posts'))
 
+@bp.route('/post/<int:id>/remove-featured-image', methods=['POST'])
+@login_required
+@admin_required
+def remove_featured_image(id):
+    post = Post.query.get_or_404(id)
+    
+    # Remove the file if it exists
+    if post.featured_image:
+        try:
+            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], post.featured_image)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            current_app.logger.error(f"Error removing featured image: {e}")
+    
+    # Update the database
+    post.featured_image = None
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
 @bp.route('/users')
 @login_required
 @permission_required(Role.MANAGE_USERS)
 def users():
-    page = request.args.get('page', 1, type=int)
-    users = User.query.order_by(User.created_at.desc()).paginate(
-        page=page, per_page=20, error_out=False)
-    return render_template('admin/users.html', users=users)
+    # Default pagination settings
+    default_page = 1
+    per_page = 10
+    
+    # Get the page parameter and sanitize it
+    page_param = request.args.get('page')
+    
+    # Ensure we have a valid page number
+    try:
+        # Only attempt conversion if we have a non-empty string
+        if page_param and page_param.strip():
+            page = max(1, int(page_param))
+        else:
+            page = default_page
+    except (TypeError, ValueError):
+        page = default_page
+    
+    # Get total number of users for pagination
+    total_users = User.query.count()
+    max_pages = (total_users + per_page - 1) // per_page
+    
+    # Ensure page number doesn't exceed maximum pages
+    page = min(page, max(1, max_pages))
+    
+    # Query users with proper ordering
+    users_query = User.query.order_by(User.created_at.desc())
+    
+    # Get paginated results with error handling
+    try:
+        users = users_query.paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+        if not users.items and page > 1:
+            # If no items found and we're not on first page, redirect to first page
+            return redirect(url_for('admin.users', page=1))
+    except Exception as e:
+        current_app.logger.error(f"Pagination error: {str(e)}")
+        users = users_query.paginate(
+            page=1,
+            per_page=per_page,
+            error_out=False
+        )
+    
+    return render_template(
+        'admin/users.html',
+        users=users,
+        current_time=datetime.utcnow()
+    )
 
 @bp.route('/user/new', methods=['GET', 'POST'])
 @login_required
@@ -899,3 +1009,26 @@ def create_role():
         return redirect(url_for('admin.roles'))
     
     return render_template('admin/create_role.html')
+
+@bp.route('/upload-editor-image', methods=['POST'])
+@login_required
+@admin_required
+def upload_editor_image():
+    if 'upload' not in request.files:
+        return jsonify({'error': {'message': 'No file uploaded'}}), 400
+        
+    file = request.files['upload']
+    if file.filename == '':
+        return jsonify({'error': {'message': 'No file selected'}}), 400
+        
+    if file and allowed_file(file.filename, {'png', 'jpg', 'jpeg', 'gif'}):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+        url = url_for('static', filename=f'uploads/{filename}')
+        return jsonify({'url': url})
+        
+    return jsonify({'error': {'message': 'Invalid file type'}}), 400
+
+def allowed_file(filename, allowed_extensions):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in allowed_extensions

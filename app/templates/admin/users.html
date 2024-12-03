@@ -1,8 +1,13 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 
-{% block title %}Users - Admin{% endblock %}
+{% block title %}Users{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Users</li>
+{% endblock %}
 
 {% block styles %}
+{{ super() }}
 <style>
 .user-avatar {
     width: 40px;
@@ -72,7 +77,7 @@
 </style>
 {% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div class="container-fluid">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 mobile-stack">
         <h2 class="mb-3 mb-md-0">Manage Users</h2>
@@ -101,77 +106,46 @@
                             <td>
                                 <div class="d-flex align-items-center user-info">
                                     {% if user.profile_image %}
-                                    <img src="{{ url_for('static', filename='uploads/' + user.profile_image) }}"
-                                         alt="{{ user.username }}" class="user-avatar me-2">
+                                    <img src="{{ url_for('static', filename='uploads/' + user.profile_image) }}" 
+                                         alt="{{ user.username }}" 
+                                         class="user-avatar me-2">
                                     {% else %}
-                                    <div class="user-avatar me-2 bg-secondary d-flex align-items-center justify-content-center text-white">
-                                        {{ user.username[0]|upper }}
+                                    <div class="user-avatar me-2 bg-secondary d-flex align-items-center justify-content-center">
+                                        <i class="fas fa-user text-white"></i>
                                     </div>
                                     {% endif %}
                                     <div>
-                                        <div>{{ user.username }}</div>
-                                        <small class="text-muted">{{ user.email }}</small>
-                                        <!-- Mobile-only info -->
-                                        <div class="d-md-none mt-2">
-                                            <span class="badge bg-info role-badge">{{ user.role.name if user.role else 'No Role' }}</span>
-                                            <div class="mt-1">
-                                                {% if user.is_active %}
-                                                    {% if user.last_activity and (now() - user.last_activity).total_seconds() < 300 %}
-                                                    <span class="status-indicator status-online"></span> Online
-                                                    {% elif user.last_activity and (now() - user.last_activity).total_seconds() < 900 %}
-                                                    <span class="status-indicator status-away"></span> Away
-                                                    {% else %}
-                                                    <span class="status-indicator status-offline"></span> Offline
-                                                    {% endif %}
-                                                {% else %}
-                                                    <span class="badge bg-danger">Inactive</span>
-                                                {% endif %}
-                                            </div>
-                                        </div>
+                                        <div class="fw-bold">{{ user.username }}</div>
+                                        <div class="text-muted small">{{ user.email }}</div>
                                     </div>
                                 </div>
                             </td>
                             <td class="d-none d-md-table-cell">
-                                <span class="badge bg-info role-badge">{{ user.role.name if user.role else 'No Role' }}</span>
+                                <span class="badge bg-info role-badge">{{ user.role.name }}</span>
                             </td>
                             <td class="d-none d-md-table-cell">
-                                {% if user.is_active %}
-                                    {% if user.last_activity and (now() - user.last_activity).total_seconds() < 300 %}
-                                    <span class="status-indicator status-online"></span> Online
-                                    {% elif user.last_activity and (now() - user.last_activity).total_seconds() < 900 %}
-                                    <span class="status-indicator status-away"></span> Away
-                                    {% else %}
-                                    <span class="status-indicator status-offline"></span> Offline
-                                    {% endif %}
-                                {% else %}
-                                    <span class="badge bg-danger">Inactive</span>
-                                {% endif %}
+                                <span class="status-indicator {{ 'status-online' if user.is_active else 'status-offline' }}"></span>
+                                {{ 'Active' if user.is_active else 'Inactive' }}
                             </td>
                             <td class="d-none d-md-table-cell">
-                                {% if user.last_activity %}
-                                <span title="{{ user.last_activity.strftime('%Y-%m-%d %H:%M:%S') }}">
-                                    {{ user.last_activity|timeago }}
-                                </span>
-                                {% else %}
-                                Never
-                                {% endif %}
+                                {{ user.last_seen.strftime('%Y-%m-%d %H:%M') if user.last_seen }}
                             </td>
-                            <td class="d-none d-md-table-cell">{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td class="d-none d-md-table-cell">
+                                {{ user.created_at.strftime('%Y-%m-%d') }}
+                            </td>
                             <td>
                                 <div class="btn-group">
                                     <a href="{{ url_for('admin.edit_user', id=user.id) }}" 
                                        class="btn btn-sm btn-outline-primary">
                                         <i class="fas fa-edit"></i>
+                                        <span class="d-none d-md-inline">Edit</span>
                                     </a>
-                                    <a href="{{ url_for('admin.user_activity_detail', id=user.id) }}"
-                                       class="btn btn-sm btn-outline-info">
-                                        <i class="fas fa-history"></i>
-                                    </a>
-                                    {% if user != current_user %}
+                                    {% if not user.is_admin %}
                                     <button type="button" 
                                             class="btn btn-sm btn-outline-danger"
-                                            onclick="confirmDelete('{{ user.id }}', '{{ user.username }}')">
+                                            onclick="confirmDelete({{ user.id }}, '{{ user.username }}')">
                                         <i class="fas fa-trash"></i>
+                                        <span class="d-none d-md-inline">Delete</span>
                                     </button>
                                     {% endif %}
                                 </div>
@@ -183,21 +157,54 @@
             </div>
 
             <!-- Pagination -->
+            {% if users.items and users.pages > 1 %}
             <nav aria-label="User pagination" class="mt-4">
                 <ul class="pagination justify-content-center flex-wrap">
-                    {% for page in users.iter_pages() %}
-                        {% if page %}
-                            <li class="page-item {% if page == users.page %}active{% endif %}">
-                                <a class="page-link" href="{{ url_for('admin.users', page=page) }}">{{ page }}</a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled">
-                                <span class="page-link">...</span>
-                            </li>
-                        {% endif %}
+                    <!-- Previous page -->
+                    <li class="page-item {{ 'disabled' if users.page == 1 }}">
+                        <a class="page-link" href="{{ url_for('admin.users', page=users.page-1) if users.page > 1 else '#' }}" {{ 'tabindex="-1" aria-disabled="true"' if users.page == 1 }}>
+                            <span aria-hidden="true">&laquo;</span>
+                            <span class="visually-hidden">Previous</span>
+                        </a>
+                    </li>
+
+                    <!-- First page -->
+                    {% if users.page > 2 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.users', page=1) }}">1</a>
+                    </li>
+                    {% if users.page > 3 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                    {% endif %}
+
+                    <!-- Current page and surrounding pages -->
+                    {% for page in range(max(1, users.page - 1), min(users.pages + 1, users.page + 2)) %}
+                    <li class="page-item {{ 'active' if page == users.page }}">
+                        <a class="page-link" href="{{ url_for('admin.users', page=page) }}">{{ page }}</a>
+                    </li>
                     {% endfor %}
+
+                    <!-- Last page -->
+                    {% if users.page < users.pages - 1 %}
+                    {% if users.page < users.pages - 2 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.users', page=users.pages) }}">{{ users.pages }}</a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Next page -->
+                    <li class="page-item {{ 'disabled' if users.page == users.pages }}">
+                        <a class="page-link" href="{{ url_for('admin.users', page=users.page+1) if users.page < users.pages else '#' }}" {{ 'tabindex="-1" aria-disabled="true"' if users.page == users.pages }}>
+                            <span aria-hidden="true">&raquo;</span>
+                            <span class="visually-hidden">Next</span>
+                        </a>
+                    </li>
                 </ul>
             </nav>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -208,27 +215,31 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Confirm Delete</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                Are you sure you want to delete user <span id="deleteUsername"></span>?
+                <p>Are you sure you want to delete user <span id="deleteUserName"></span>?</p>
+                <p class="text-danger">This action cannot be undone.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="deleteForm" method="POST" style="display: inline;">
+                <form id="deleteForm" method="POST" class="d-inline">
                     <button type="submit" class="btn btn-danger">Delete</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script>
 function confirmDelete(userId, username) {
-    document.getElementById('deleteUsername').textContent = username;
-    document.getElementById('deleteForm').action = "{{ url_for('admin.delete_user', id='') }}" + userId;
-    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    document.getElementById('deleteUserName').textContent = username;
+    document.getElementById('deleteForm').action = "{{ url_for('admin.delete_user', id=0) }}".replace('0', userId);
+    var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
 }
 </script>
 {% endblock %}
