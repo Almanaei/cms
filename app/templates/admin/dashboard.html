@@ -21,7 +21,7 @@
         <!-- Sidebar -->
         <div class="col-md-2">
             <div class="list-group">
-                <a href="{{ url_for('admin.dashboard') }}" class="list-group-item list-group-item-action active">
+                <a href="{{ url_for('admin.index') }}" class="list-group-item list-group-item-action active">
                     <i class="fas fa-tachometer-alt"></i> Dashboard
                 </a>
                 <a href="{{ url_for('admin.users') }}" class="list-group-item list-group-item-action">
@@ -35,9 +35,6 @@
                 </a>
                 <a href="{{ url_for('admin.categories') }}" class="list-group-item list-group-item-action">
                     <i class="fas fa-folder"></i> Categories
-                </a>
-                <a href="{{ url_for('admin.tags') }}" class="list-group-item list-group-item-action">
-                    <i class="fas fa-tags"></i> Tags
                 </a>
                 <a href="{{ url_for('admin.media') }}" class="list-group-item list-group-item-action">
                     <i class="fas fa-images"></i> Media

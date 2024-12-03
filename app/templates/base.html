@@ -83,7 +83,10 @@
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">Analytics</h6></li>
                             <li><a class="dropdown-item d-flex align-items-center" href="{{ url_for('admin.analytics') }}">
-                                <i class="bi bi-graph-up me-2"></i> Dashboard
+                                <i class="bi bi-graph-up me-2"></i> Analytics
+                            </a></li>
+                            <li><a class="dropdown-item d-flex align-items-center" href="{{ url_for('admin.index') }}">
+                                <i class="bi bi-speedometer2 me-2"></i> Dashboard
                             </a></li>
                             <li><a class="dropdown-item d-flex align-items-center" href="{{ url_for('admin.user_activity_list') }}">
                                 <i class="bi bi-activity me-2"></i> User Activity
@@ -185,20 +188,13 @@
                 if (config.headers === undefined) {
                     config.headers = {};
                 }
-                if (!(config.headers instanceof Headers)) {
-                    config.headers = new Headers(config.headers);
-                }
-                config.headers.set('X-CSRFToken', csrfToken);
+                config.headers['X-CSRF-Token'] = csrfToken;
                 return originalFetch(resource, config);
             };
-        });
-    </script>
-    
-    <!-- Theme Toggle Script -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
+
+            // Theme toggle functionality
             const themeToggle = document.getElementById('theme-toggle');
-            
+
             // Function to set theme
             function setTheme(theme) {
                 document.documentElement.setAttribute('data-theme', theme);

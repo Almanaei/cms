@@ -42,7 +42,7 @@
                         {{ current_user.username }}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="{{ url_for('admin.profile') }}">Profile</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">Profile</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Logout</a></li>
                     </ul>
@@ -61,7 +61,7 @@
             <div class="position-sticky pt-3">
                 <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center" href="{{ url_for('admin.dashboard') }}">
+                        <a class="nav-link d-flex align-items-center" href="{{ url_for('admin.index') }}">
                             <i class="bi bi-speedometer2 me-2"></i>
                             Dashboard
                         </a>
@@ -110,7 +110,7 @@
                     <li class="nav-item">
                         <a class="nav-link d-flex align-items-center" href="{{ url_for('admin.analytics') }}">
                             <i class="bi bi-graph-up me-2"></i>
-                            Dashboard
+                            Analytics
                         </a>
                     </li>
                     <li class="nav-item">

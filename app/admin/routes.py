@@ -91,15 +91,42 @@ def create_post():
 @login_required
 @admin_required
 def categories():
-    categories = Category.query.all()
-    return render_template('admin/categories.html', categories=categories)
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+
+    # Get all categories with their post counts
+    categories_with_counts = db.session.query(
+        Category,
+        db.func.count(Post.id).label('post_count')
+    ).outerjoin(Post).group_by(Category.id).order_by(Category.name.asc())
+    
+    # Manual pagination
+    total = categories_with_counts.count()
+    offset = (page - 1) * per_page
+    categories_list = categories_with_counts.offset(offset).limit(per_page).all()
+    
+    # Create pagination object
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total': total,
+        'pages': (total + per_page - 1) // per_page
+    }
+    
+    return render_template('admin/categories.html', 
+                         categories=categories_list,
+                         pagination=pagination)
 
 @bp.route('/category/new', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def create_category():
     if request.method == 'POST':
-        category = Category(name=request.form['name'])
+        category = Category(
+            name=request.form['name'],
+            slug=request.form['slug'],
+            description=request.form.get('description', '')
+        )
         db.session.add(category)
         db.session.commit()
         flash('Category created successfully!', 'success')
@@ -113,6 +140,8 @@ def edit_category(id):
     category = Category.query.get_or_404(id)
     if request.method == 'POST':
         category.name = request.form['name']
+        category.slug = request.form['slug']
+        category.description = request.form.get('description', '')
         db.session.commit()
         flash('Category updated successfully!', 'success')
         return redirect(url_for('admin.categories'))
