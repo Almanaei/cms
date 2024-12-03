@@ -42,59 +42,104 @@
     </div>
 </nav>
 
-<!-- Page Container -->
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar -->
-        <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
-            <div class="position-sticky pt-3">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'admin.index' }}" href="{{ url_for('admin.index') }}">
-                            <i class="bi bi-speedometer2"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'admin.posts' }}" href="{{ url_for('admin.posts') }}">
-                            <i class="bi bi-file-text"></i> Posts
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'admin.categories' }}" href="{{ url_for('admin.categories') }}">
-                            <i class="bi bi-folder"></i> Categories
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'admin.media' }}" href="{{ url_for('admin.media') }}">
-                            <i class="bi bi-images"></i> Media
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'admin.comments' }}" href="{{ url_for('admin.comments') }}">
-                            <i class="bi bi-chat-dots"></i> Comments
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'admin.users' }}" href="{{ url_for('admin.users') }}">
-                            <i class="bi bi-people"></i> Users
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'admin.settings' }}" href="{{ url_for('admin.settings') }}">
-                            <i class="bi bi-gear"></i> Settings
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </nav>
+        <div class="col-md-3 col-lg-2 d-md-block sidebar-wrapper">
+            <div id="sidebar" class="sidebar">
+                <div class="position-sticky">
+                    <ul class="nav flex-column">
+                        <!-- Dashboard -->
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.endpoint == 'admin.index' }}" href="{{ url_for('admin.index') }}">
+                                <i class="bi bi-speedometer2"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
 
-        <!-- Main content -->
+                        <!-- Content Section -->
+                        <li class="nav-header">Content</li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if 'admin.posts' in request.endpoint }}" href="{{ url_for('admin.posts') }}">
+                                <i class="bi bi-file-text"></i>
+                                <span>Posts</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if 'admin.categories' in request.endpoint }}" href="{{ url_for('admin.categories') }}">
+                                <i class="bi bi-folder"></i>
+                                <span>Categories</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if 'admin.comments' in request.endpoint }}" href="{{ url_for('admin.comments') }}">
+                                <i class="bi bi-chat-dots"></i>
+                                <span>Comments</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if 'admin.media' in request.endpoint }}" href="{{ url_for('admin.media') }}">
+                                <i class="bi bi-images"></i>
+                                <span>Media</span>
+                            </a>
+                        </li>
+
+                        <!-- Users Section -->
+                        <li class="nav-header">Users</li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if 'admin.users' in request.endpoint }}" href="{{ url_for('admin.users') }}">
+                                <i class="bi bi-people"></i>
+                                <span>Users</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if 'admin.roles' in request.endpoint }}" href="{{ url_for('admin.roles') }}">
+                                <i class="bi bi-shield"></i>
+                                <span>Roles</span>
+                            </a>
+                        </li>
+
+                        <!-- Analytics Section -->
+                        <li class="nav-header">Analytics</li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.endpoint == 'admin.analytics' }}" href="{{ url_for('admin.analytics') }}">
+                                <i class="bi bi-graph-up"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if 'admin.user_activity' in request.endpoint }}" href="{{ url_for('admin.user_activity_list') }}">
+                                <i class="bi bi-activity"></i>
+                                <span>User Activity</span>
+                            </a>
+                        </li>
+
+                        <!-- System Section -->
+                        <li class="nav-header">System</li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if 'admin.settings' in request.endpoint }}" href="{{ url_for('admin.settings') }}">
+                                <i class="bi bi-gear"></i>
+                                <span>Settings</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if 'admin.backups' in request.endpoint }}" href="{{ url_for('admin.backups') }}">
+                                <i class="bi bi-cloud-arrow-up"></i>
+                                <span>Backups</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            <!-- Mobile sidebar toggle -->
+            <!-- Mobile Sidebar Toggle -->
             <button class="btn btn-link d-md-none mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar">
                 <i class="bi bi-list"></i> Menu
             </button>
-            
+
             <!-- Breadcrumb -->
             <nav aria-label="breadcrumb" class="mt-3">
                 <ol class="breadcrumb">
@@ -103,53 +148,32 @@
                 </ol>
             </nav>
 
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Page Content -->
             {% block admin_content %}{% endblock %}
         </main>
     </div>
 </div>
-{% endblock %}
 
-{% block styles %}
-{{ super() }}
-<style> 
-
-.theme-switcher {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
+<style>
+/* Layout */
+body {
+    padding-top: 56px;
 }
 
-.theme-switcher i {
-    font-size: 1.2rem;
-}
-
-#lightIcon {
-    color: #ffd700;
-}
-
-#darkIcon {
-    color: #6c757d;
-}
-
-/* Dark mode styles */
-[data-bs-theme="dark"] .sidebar {
-    background-color: #212529 !important;
-}
-
-[data-bs-theme="dark"] .sidebar .nav-link {
-    color: #fff;
-}
-
-[data-bs-theme="dark"] .sidebar .nav-link:hover {
-    color: #0d6efd;
-}
-
-[data-bs-theme="dark"] #darkIcon {
-    color: #fff;
-}
 /* Sidebar */
-.sidebar {
+.sidebar-wrapper {
     position: fixed;
     top: 56px;
     bottom: 0;
@@ -159,54 +183,158 @@
     box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
 }
 
+.sidebar {
+    position: relative;
+    height: calc(100vh - 56px);
+    padding-top: .5rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+/* Sidebar Navigation */
 .sidebar .nav-link {
     font-weight: 500;
-    color: #333;
-    padding: 0.75rem 1rem;
+    padding: .75rem 1rem;
+    color: var(--bs-body-color);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sidebar .nav-link:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+}
+
+.sidebar .nav-link.active {
+    color: var(--bs-primary);
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+}
+
+.sidebar .nav-link i {
+    font-size: 1.1rem;
+    color: inherit;
+}
+
+/* Dark Mode */
+[data-bs-theme="dark"] .sidebar {
+    background-color: var(--bs-dark);
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, .1);
+}
+
+[data-bs-theme="dark"] .sidebar .nav-link {
+    color: rgba(255, 255, 255, .8);
+}
+
+[data-bs-theme="dark"] .sidebar .nav-link:hover,
+[data-bs-theme="dark"] .sidebar .nav-link.active {
+    color: var(--bs-primary);
+}
+
+/* Main Content */
+main {
+    padding-top: 1.5rem;
+}
+
+/* Responsive */
+@media (max-width: 767.98px) {
+    .sidebar-wrapper {
+        position: static;
+        height: auto;
+    }
+    
+    .sidebar {
+        position: fixed;
+        top: 56px;
+        left: -100%;
+        width: 250px;
+        height: calc(100vh - 56px);
+        transition: all 0.3s;
+        background-color: var(--bs-body-bg);
+        z-index: 1000;
+    }
+    
+    .sidebar.show {
+        left: 0;
+    }
+    
+    main {
+        margin-left: 0 !important;
+    }
+}
+
+/* Theme Switcher */
+.theme-switcher {
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
+.theme-switcher i {
+    font-size: 1.1rem;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    margin-bottom: 1rem;
+    background: transparent;
+}
+
+.breadcrumb-item a {
+    color: var(--bs-primary);
+    text-decoration: none;
+}
+
+.breadcrumb-item.active {
+    color: var(--bs-body-color);
+}
+
+/* Sidebar Navigation Headers */
+.nav-header {
+    padding: 1rem 1rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--bs-secondary);
+    letter-spacing: 0.05em;
+}
+
+[data-bs-theme="dark"] .nav-header {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Sidebar Navigation Items */
+.sidebar .nav-link {
+    padding: 0.5rem 1rem;
+    color: var(--bs-body-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
 .sidebar .nav-link:hover {
-    color: #0d6efd;
+    color: var(--bs-primary);
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
 }
 
 .sidebar .nav-link.active {
-    color: #0d6efd;
-    background-color: rgba(13, 110, 253, 0.1);
+    color: var(--bs-primary);
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+    font-weight: 500;
 }
 
 .sidebar .nav-link i {
     font-size: 1.1rem;
-}
-
-/* Main content */
-main {
-    margin-top: 56px;
-}
-
-/* Mobile responsiveness */
-@media (max-width: 767.98px) {
-    .sidebar {
-        position: static;
-        height: auto;
-        padding-top: 0;
-    }
-
-    .ms-sm-auto {
-        margin-left: 0 !important;
-    }
+    min-width: 1.5rem;
+    text-align: center;
 }
 </style>
-{% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-
-
     document.addEventListener('DOMContentLoaded', function() {
+        // Theme Switcher
         const themeSwitcher = document.getElementById('themeSwitcher');
         const htmlElement = document.documentElement;
         
@@ -223,21 +351,29 @@ main {
             htmlElement.setAttribute('data-bs-theme', theme);
             localStorage.setItem('theme', theme);
         });
-    });
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Close mobile sidebar when clicking outside
-    document.addEventListener('click', function(e) {
+        // Mobile Sidebar
         const sidebar = document.getElementById('sidebar');
-        const toggleButton = document.querySelector('[data-bs-target="#sidebar"]');
+        const toggleButton = document.querySelector('[data-bs-toggle="collapse"][data-bs-target="#sidebar"]');
         
-        if (window.innerWidth < 768 && 
-            !sidebar.contains(e.target) && 
-            !toggleButton.contains(e.target) && 
-            sidebar.classList.contains('show')) {
-            bootstrap.Collapse.getInstance(sidebar).hide();
+        if (toggleButton) {
+            toggleButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                sidebar.classList.toggle('show');
+            });
+
+            // Close sidebar when clicking outside
+            document.addEventListener('click', function(e) {
+                if (window.innerWidth < 768 && 
+                    !sidebar.contains(e.target) && 
+                    !toggleButton.contains(e.target) && 
+                    sidebar.classList.contains('show')) {
+                    sidebar.classList.remove('show');
+                }
+            });
         }
     });
-});
 </script>
+{% endblock %}
+
 {% endblock %}

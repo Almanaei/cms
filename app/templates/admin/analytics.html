@@ -2,258 +2,178 @@
 
 {% block title %}Analytics Dashboard - Admin{% endblock %}
 
-{% block content %}
-<div class="admin-container">
-    <nav class="sidebar">
-        <div class="sidebar-sticky">
-            <div class="nav-section">
-                <div class="nav-section-title">Content</div>
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.posts') }}">
-                            <i class="bi bi-file-text"></i> Posts
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.categories') }}">
-                            <i class="bi bi-folder"></i> Categories
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.comments') }}">
-                            <i class="bi bi-chat"></i> Comments
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.media') }}">
-                            <i class="bi bi-image"></i> Media
-                        </a>
-                    </li>
-                </ul>
-            </div>
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Analytics</li>
+{% endblock %}
 
-            <div class="nav-section">
-                <div class="nav-section-title">Users</div>
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.users') }}">
-                            <i class="bi bi-people"></i> Users
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.roles') }}">
-                            <i class="bi bi-person-badge"></i> Roles
-                        </a>
-                    </li>
-                </ul>
-            </div>
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>Analytics Dashboard</h2>
+        <p class="text-muted">Performance metrics and insights</p>
+    </div>
+</div>
 
-            <div class="nav-section">
-                <div class="nav-section-title">Analytics</div>
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="{{ url_for('admin.analytics') }}">
-                            <i class="bi bi-graph-up"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.user_activity_list') }}">
-                            <i class="bi bi-clock-history"></i> User Activity
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="nav-section">
-                <div class="nav-section-title">System</div>
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.settings') }}">
-                            <i class="bi bi-gear"></i> Settings
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.backups') }}">
-                            <i class="bi bi-cloud-arrow-up"></i> Backups
-                        </a>
-                    </li>
-                </ul>
+<!-- Key Metrics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Page Views</h6>
+                        <h3 class="card-title mb-0">{{ total_views }}</h3>
+                        <div class="trend-indicator {% if view_growth >= 0 %}trend-up{% else %}trend-down{% endif %} mt-2">
+                            <i class="bi bi-arrow-{% if view_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ view_growth|abs }}%
+                        </div>
+                    </div>
+                    <div class="stat-icon bg-white text-primary">
+                        <i class="bi bi-eye"></i>
+                    </div>
+                </div>
             </div>
         </div>
-    </nav>
+    </div>
 
-    <main class="main-content">
-        <div class="container-fluid">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h2>Analytics Dashboard</h2>
-                    <p class="text-muted">Performance metrics and insights</p>
-                </div>
-            </div>
-
-            <!-- Key Metrics -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card stat-card bg-primary text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-subtitle mb-2">Page Views</h6>
-                                    <h3 class="card-title mb-0">{{ total_views }}</h3>
-                                    <div class="trend-indicator {% if view_growth >= 0 %}trend-up{% else %}trend-down{% endif %} mt-2">
-                                        <i class="bi bi-arrow-{% if view_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ view_growth|abs }}%
-                                    </div>
-                                </div>
-                                <div class="stat-icon bg-white text-primary">
-                                    <i class="bi bi-eye"></i>
-                                </div>
-                            </div>
+    <div class="col-md-3">
+        <div class="card stat-card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Active Users</h6>
+                        <h3 class="card-title mb-0">{{ active_users }}</h3>
+                        <div class="trend-indicator {% if user_growth >= 0 %}trend-up{% else %}trend-down{% endif %} mt-2">
+                            <i class="bi bi-arrow-{% if user_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ user_growth|abs }}%
                         </div>
                     </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div class="card stat-card bg-success text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-subtitle mb-2">Active Users</h6>
-                                    <h3 class="card-title mb-0">{{ active_users }}</h3>
-                                    <div class="trend-indicator {% if user_growth >= 0 %}trend-up{% else %}trend-down{% endif %} mt-2">
-                                        <i class="bi bi-arrow-{% if user_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ user_growth|abs }}%
-                                    </div>
-                                </div>
-                                <div class="stat-icon bg-white text-success">
-                                    <i class="bi bi-people"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div class="card stat-card bg-info text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-subtitle mb-2">Published Content</h6>
-                                    <h3 class="card-title mb-0">{{ total_content }}</h3>
-                                    <div class="trend-indicator {% if content_growth >= 0 %}trend-up{% else %}trend-down{% endif %} mt-2">
-                                        <i class="bi bi-arrow-{% if content_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ content_growth|abs }}%
-                                    </div>
-                                </div>
-                                <div class="stat-icon bg-white text-info">
-                                    <i class="bi bi-file-text"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div class="card stat-card bg-warning text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-subtitle mb-2">Engagement Rate</h6>
-                                    <h3 class="card-title mb-0">{{ engagement_rate }}%</h3>
-                                    <div class="trend-indicator {% if engagement_growth >= 0 %}trend-up{% else %}trend-down{% endif %} mt-2">
-                                        <i class="bi bi-arrow-{% if engagement_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ engagement_growth|abs }}%
-                                    </div>
-                                </div>
-                                <div class="stat-icon bg-white text-warning">
-                                    <i class="bi bi-graph-up"></i>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="stat-icon bg-white text-success">
+                        <i class="bi bi-people"></i>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="row mb-4">
-                <!-- Traffic Overview -->
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Traffic Overview</h5>
-                            <div class="chart-container">
-                                <canvas id="trafficChart"></canvas>
-                            </div>
+    <div class="col-md-3">
+        <div class="card stat-card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Published Content</h6>
+                        <h3 class="card-title mb-0">{{ total_content }}</h3>
+                        <div class="trend-indicator {% if content_growth >= 0 %}trend-up{% else %}trend-down{% endif %} mt-2">
+                            <i class="bi bi-arrow-{% if content_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ content_growth|abs }}%
                         </div>
                     </div>
+                    <div class="stat-icon bg-white text-info">
+                        <i class="bi bi-file-text"></i>
+                    </div>
                 </div>
+            </div>
+        </div>
+    </div>
 
-                <!-- Recent Activity -->
-                <div class="col-md-4">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Recent Activity</h5>
-                            <div class="list-group list-group-flush">
-                                {% for activity in recent_activities %}
-                                <div class="list-group-item px-0">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-1">{{ activity.user.username }}</h6>
-                                            <p class="text-muted small mb-0">{{ activity.action|replace('_', ' ')|title }}</p>
+    <div class="col-md-3">
+        <div class="card stat-card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Engagement Rate</h6>
+                        <h3 class="card-title mb-0">{{ engagement_rate }}%</h3>
+                        <div class="trend-indicator {% if engagement_growth >= 0 %}trend-up{% else %}trend-down{% endif %} mt-2">
+                            <i class="bi bi-arrow-{% if engagement_growth >= 0 %}up{% else %}down{% endif %}"></i> {{ engagement_growth|abs }}%
+                        </div>
+                    </div>
+                    <div class="stat-icon bg-white text-warning">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Traffic Overview -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Traffic Overview</h5>
+                <div class="chart-container">
+                    <canvas id="trafficChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Recent Activity</h5>
+                <div class="list-group list-group-flush">
+                    {% for activity in recent_activities %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ activity.user.username }}</h6>
+                                <p class="text-muted small mb-0">{{ activity.action|replace('_', ' ')|title }}</p>
+                            </div>
+                            <small class="text-muted">{{ activity.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Top Content -->
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Top Content</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover top-content-table">
+                        <thead>
+                            <tr>
+                                <th>Post</th>
+                                <th>Author</th>
+                                <th>Views</th>
+                                <th>Published</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for post, views in top_posts %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if post.featured_image %}
+                                        <img src="{{ url_for('static', filename='uploads/' + post.featured_image) }}" alt="{{ post.title }}" class="me-3">
+                                        {% else %}
+                                        <div class="bg-light rounded me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="bi bi-file-text"></i>
                                         </div>
-                                        <small class="text-muted">{{ activity.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                        {% endif %}
+                                        <div>
+                                            <h6 class="mb-0">{{ post.title }}</h6>
+                                            <small class="text-muted">{{ post.category.name if post.category else 'Uncategorized' }}</small>
+                                        </div>
                                     </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row">
-                <!-- Top Content -->
-                <div class="col-md-12">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Top Content</h5>
-                            <div class="table-responsive">
-                                <table class="table table-hover top-content-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Post</th>
-                                            <th>Author</th>
-                                            <th>Views</th>
-                                            <th>Published</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for post, views in top_posts %}
-                                        <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    {% if post.featured_image %}
-                                                    <img src="{{ url_for('static', filename='uploads/' + post.featured_image) }}" alt="{{ post.title }}" class="me-3">
-                                                    {% else %}
-                                                    <div class="bg-light rounded me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="bi bi-file-text"></i>
-                                                    </div>
-                                                    {% endif %}
-                                                    <div>
-                                                        <h6 class="mb-0">{{ post.title }}</h6>
-                                                        <small class="text-muted">{{ post.category.name if post.category else 'Uncategorized' }}</small>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>{{ post.author.username }}</td>
-                                            <td>{{ views }}</td>
-                                            <td>{{ post.created_at.strftime('%Y-%m-%d') }}</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+                                </td>
+                                <td>{{ post.author.username }}</td>
+                                <td>{{ views }}</td>
+                                <td>{{ post.created_at.strftime('%Y-%m-%d') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
-    </main>
+    </div>
 </div>
 {% endblock %}
 
