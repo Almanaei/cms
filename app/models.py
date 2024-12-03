@@ -239,6 +239,28 @@ class Post(db.Model):
         db.session.add(self)
         db.session.commit()
 
+    def get_related_posts(self, limit=3):
+        """Get related posts based on category and tags."""
+        # Start with posts in the same category
+        related = Post.query.filter(
+            Post.category_id == self.category_id,
+            Post.id != self.id,
+            Post.published == True
+        )
+
+        # Get posts with common tags
+        if self.tags:
+            tag_posts = Post.query.join(post_tags).join(Tag).filter(
+                Tag.id.in_([tag.id for tag in self.tags]),
+                Post.id != self.id,
+                Post.published == True
+            )
+            # Combine both queries and remove duplicates
+            related = related.union(tag_posts)
+
+        # Order by date and limit results
+        return related.order_by(Post.created_at.desc()).limit(limit).all()
+
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), unique=True, nullable=False)
