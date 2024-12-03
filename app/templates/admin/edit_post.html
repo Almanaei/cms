@@ -1,156 +1,362 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 
-{% block title %}Edit Post - Admin{% endblock %}
+{% block title %}{{ 'Edit' if post else 'Create' }} Post{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('admin.posts') }}">Posts</a></li>
+<li class="breadcrumb-item active">{{ 'Edit' if post else 'Create' }} Post</li>
+{% endblock %}
 
 {% block styles %}
+{{ super() }}
 <style>
-    .editor-container {
-        margin-bottom: 1rem;
-    }
+    /* Mobile-friendly editor styles */
     .ck-editor__editable {
-        min-height: 400px;
+        min-height: 300px;
+        max-height: calc(100vh - 300px);
     }
-    .meta-section {
-        background: #f8f9fa;
-        border-radius: 4px;
-        padding: 1rem;
-        margin-bottom: 1rem;
+    
+    @media (max-width: 768px) {
+        .ck-editor__editable {
+            min-height: 200px;
+            max-height: calc(100vh - 400px);
+        }
+        
+        .ck.ck-toolbar {
+            flex-wrap: wrap;
+        }
+        
+        .ck.ck-toolbar > .ck-toolbar__items {
+            flex-wrap: wrap;
+        }
     }
-    .schedule-section {
-        display: none;
+    
+    /* Image preview styles */
+    .image-preview {
+        max-width: 100%;
+        height: auto;
+        border-radius: 0.5rem;
     }
-    .schedule-section.active {
-        display: block;
+    
+    .image-preview-container {
+        position: relative;
+        margin-top: 1rem;
+    }
+    
+    .image-preview-remove {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 50%;
+        padding: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .image-preview-remove:hover {
+        background: #fff;
+        transform: scale(1.1);
     }
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="container mt-4">
-    <h2>Edit Post</h2>
-    <form method="POST" enctype="multipart/form-data" id="postForm">
+{% block admin_content %}
+<div class="container-fluid p-0">
+    <form method="POST" 
+          action="{{ url_for('admin.edit_post', id=post.id) if post else url_for('admin.create_post') }}" 
+          enctype="multipart/form-data"
+          class="needs-validation"
+          novalidate>
+        {{ form.csrf_token }}
+        
         <div class="mb-3">
-            <label for="title" class="form-label">Title</label>
-            <input type="text" class="form-control" id="title" name="title" value="{{ post.title }}" required>
-        </div>
-
-        <div class="mb-3">
-            <label for="category" class="form-label">Category</label>
-            <select class="form-select" id="category" name="category_id">
-                <option value="">Select Category</option>
-                {% for category in categories %}
-                <option value="{{ category.id }}" {% if post.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="mb-3">
-            <label for="summary" class="form-label">Summary</label>
-            <textarea class="form-control" id="summary" name="summary" rows="3">{{ post.summary }}</textarea>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Content</label>
-            <div class="editor-container">
-                <textarea id="content" name="content">{{ post.content|safe }}</textarea>
+            <h1 class="h3 d-inline align-middle">{{ 'Edit' if post else 'Create' }} Post</h1>
+            <div class="float-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg me-1"></i>
+                    {{ 'Update' if post else 'Create' }}
+                </button>
+                <a href="{{ url_for('admin.posts') }}" class="btn btn-secondary">
+                    <i class="bi bi-x-lg me-1"></i>
+                    Cancel
+                </a>
             </div>
         </div>
 
-        <div class="meta-section">
-            <div class="mb-3">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="schedule" name="schedule">
-                    <label class="form-check-label" for="schedule">
-                        Schedule Post
-                    </label>
+        <div class="row g-4">
+            <!-- Main Content -->
+            <div class="col-12 col-lg-8">
+                <div class="card">
+                    <div class="card-body">
+                        <!-- Title -->
+                        <div class="mb-4">
+                            <label class="form-label">Title</label>
+                            {{ form.title(class="form-control form-control-lg", placeholder="Enter post title...") }}
+                            {% if form.title.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.title.errors %}{{ error }}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Content -->
+                        <div class="mb-3">
+                            <label class="form-label">Content</label>
+                            <textarea id="editor" name="content">{{ post.content if post else '' }}</textarea>
+                        </div>
+
+                        <!-- Excerpt -->
+                        <div>
+                            <label class="form-label">Excerpt</label>
+                            {{ form.excerpt(class="form-control", rows="3", placeholder="Brief summary of the post...") }}
+                            {% if form.excerpt.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.excerpt.errors %}{{ error }}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="schedule-section">
-                <div class="mb-3">
-                    <label for="scheduled_date" class="form-label">Date</label>
-                    <input type="date" class="form-control" id="scheduled_date" name="scheduled_date">
+            <!-- Sidebar -->
+            <div class="col-12 col-lg-4">
+                <!-- Settings Card -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Post Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Category -->
+                        <div class="mb-3">
+                            <label class="form-label">Category</label>
+                            {{ form.category_id(class="form-select") }}
+                            {% if form.category_id.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.category_id.errors %}{{ error }}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Status -->
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            {{ form.status(class="form-select") }}
+                            {% if form.status.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.status.errors %}{{ error }}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Publish Date -->
+                        <div class="mb-3">
+                            <label class="form-label">Publish Date</label>
+                            {{ form.publish_date(class="form-control", type="datetime-local") }}
+                            {% if form.publish_date.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.publish_date.errors %}{{ error }}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Featured Image -->
+                        <div class="mb-3">
+                            <label class="form-label">Featured Image</label>
+                            <input type="file" name="featured_image" class="form-control" accept="image/*">
+                            {% if post and post.featured_image %}
+                            <div class="mt-2">
+                                <img src="{{ url_for('static', filename='uploads/' + post.featured_image) }}" 
+                                     alt="Featured image" 
+                                     class="img-thumbnail" 
+                                     style="max-height: 200px">
+                                <button type="button" 
+                                        class="btn btn-sm btn-danger mt-2"
+                                        class="btn btn-sm btn-danger mt-2">
+                                    <i class="bi bi-trash"></i> Remove Image
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="scheduled_time" class="form-label">Time</label>
-                    <input type="time" class="form-control" id="scheduled_time" name="scheduled_time">
+
+                <!-- SEO Card -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">SEO Settings</h5>
+                        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="collapse" data-bs-target="#seoCollapse">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                    </div>
+                    <div class="collapse show" id="seoCollapse">
+                        <div class="card-body">
+                            <!-- Meta Title -->
+                            <div class="mb-3">
+                                <label class="form-label">Meta Title</label>
+                                {{ form.meta_title(class="form-control", placeholder="SEO title...") }}
+                            </div>
+
+                            <!-- Meta Description -->
+                            <div class="mb-3">
+                                <label class="form-label">Meta Description</label>
+                                {{ form.meta_description(class="form-control", rows="3", placeholder="SEO description...") }}
+                            </div>
+
+                            <!-- Slug -->
+                            <div>
+                                <label class="form-label">URL Slug</label>
+                                {{ form.slug(class="form-control", placeholder="post-url-slug") }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <button type="submit" class="btn btn-primary">Update Post</button>
-        <a href="{{ url_for('admin.posts') }}" class="btn btn-secondary">Cancel</a>
     </form>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.ckeditor.com/ckeditor5/36.0.1/classic/ckeditor.js"></script>
+{{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    ClassicEditor
-        .create(document.querySelector('#content'), {
-            toolbar: {
-                items: [
-                    'heading',
-                    '|',
-                    'bold',
-                    'italic',
-                    'link',
-                    'bulletedList',
-                    'numberedList',
-                    '|',
-                    'outdent',
-                    'indent',
-                    '|',
-                    'imageUpload',
-                    'blockQuote',
-                    'insertTable',
-                    'mediaEmbed',
-                    'undo',
-                    'redo',
-                    '|',
-                    'code',
-                    'codeBlock',
-                    'htmlEmbed',
-                    '|',
-                    'highlight',
-                    'fontBackgroundColor',
-                    'fontColor',
-                    '|',
-                    'alignment',
-                    'fontSize'
-                ]
-            },
-            language: 'en',
-            image: {
-                toolbar: [
-                    'imageTextAlternative',
-                    'imageStyle:full',
-                    'imageStyle:side'
-                ]
-            },
-            table: {
-                contentToolbar: [
-                    'tableColumn',
-                    'tableRow',
-                    'mergeTableCells',
-                    'tableCellProperties',
-                    'tableProperties'
-                ]
+    // Image preview functionality
+    const imageUpload = document.getElementById('image-upload');
+    const previewContainer = document.getElementById('image-preview-container');
+    const previewImage = document.getElementById('preview-image');
+    const currentImage = document.getElementById('current-image');
+    const removeButton = document.getElementById('remove-image');
+
+    if (imageUpload) {
+        imageUpload.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    previewContainer.classList.remove('d-none');
+                    if (currentImage) {
+                        currentImage.classList.add('d-none');
+                    }
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    if (removeButton) {
+        removeButton.addEventListener('click', function() {
+            currentImage.classList.add('d-none');
+            imageUpload.value = '';
+            // Add a hidden input to mark the image for deletion
+            const deleteInput = document.createElement('input');
+            deleteInput.type = 'hidden';
+            deleteInput.name = 'delete_image';
+            deleteInput.value = 'true';
+            imageUpload.parentNode.appendChild(deleteInput);
+        });
+    }
+
+    // Auto-generate slug from title
+    const titleInput = document.querySelector('input[name="title"]');
+    const slugInput = document.querySelector('input[name="slug"]');
+    
+    if (titleInput && slugInput) {
+        titleInput.addEventListener('input', function() {
+            if (!slugInput.value || slugInput.value === '') {
+                slugInput.value = this.value
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/(^-|-$)/g, '');
+            }
+        });
+    }
+
+    // Form validation
+    const form = document.getElementById('postForm');
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+});
+
+function removeFeaturedImage(url) {
+    if (confirm('Are you sure you want to remove the featured image?')) {
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to remove image');
             }
         })
         .catch(error => {
-            console.error(error);
+            console.error('Error:', error);
+            alert('An error occurred');
         });
+    }
+}
 
-    // Handle scheduling toggle
-    const scheduleCheckbox = document.getElementById('schedule');
-    const scheduleSection = document.querySelector('.schedule-section');
-    
-    scheduleCheckbox.addEventListener('change', function() {
-        scheduleSection.classList.toggle('active', this.checked);
+ClassicEditor
+    .create(document.querySelector('#editor'), {
+        simpleUpload: {
+            uploadUrl: '{{ url_for("admin.upload_editor_image") }}',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        },
+        toolbar: {
+            items: [
+                'heading',
+                '|',
+                'bold',
+                'italic',
+                'link',
+                'bulletedList',
+                'numberedList',
+                '|',
+                'outdent',
+                'indent',
+                '|',
+                'imageUpload',
+                'blockQuote',
+                'insertTable',
+                'mediaEmbed',
+                'undo',
+                'redo'
+            ]
+        },
+        language: 'en',
+        image: {
+            toolbar: [
+                'imageTextAlternative',
+                'imageStyle:full',
+                'imageStyle:side'
+            ]
+        },
+        table: {
+            contentToolbar: [
+                'tableColumn',
+                'tableRow',
+                'mergeTableCells'
+            ]
+        },
+    })
+    .catch(error => {
+        console.error(error);
     });
-});
 </script>
 {% endblock %}
+

@@ -19,29 +19,63 @@
     margin-right: 5px;
 }
 
-.status-online {
-    background-color: #28a745;
-}
-
-.status-offline {
-    background-color: #dc3545;
-}
-
-.status-away {
-    background-color: #ffc107;
-}
+.status-online { background-color: #28a745; }
+.status-offline { background-color: #dc3545; }
+.status-away { background-color: #ffc107; }
 
 .role-badge {
     font-size: 0.8rem;
     padding: 0.3rem 0.5rem;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .user-info {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .user-avatar {
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-group {
+        display: flex;
+        flex-direction: row;
+        gap: 0.25rem;
+    }
+    
+    .table td {
+        padding: 0.75rem 0.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .btn-group {
+        justify-content: flex-start;
+    }
+    
+    .mobile-stack {
+        display: block !important;
+    }
+    
+    .mobile-stack > * {
+        margin-bottom: 0.5rem;
+    }
 }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Manage Users</h2>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 mobile-stack">
+        <h2 class="mb-3 mb-md-0">Manage Users</h2>
         <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary">
             <i class="fas fa-user-plus"></i> Create User
         </a>
@@ -54,10 +88,10 @@
                     <thead>
                         <tr>
                             <th>User</th>
-                            <th>Role</th>
-                            <th>Status</th>
-                            <th>Last Active</th>
-                            <th>Created</th>
+                            <th class="d-none d-md-table-cell">Role</th>
+                            <th class="d-none d-md-table-cell">Status</th>
+                            <th class="d-none d-md-table-cell">Last Active</th>
+                            <th class="d-none d-md-table-cell">Created</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -65,7 +99,7 @@
                         {% for user in users.items %}
                         <tr>
                             <td>
-                                <div class="d-flex align-items-center">
+                                <div class="d-flex align-items-center user-info">
                                     {% if user.profile_image %}
                                     <img src="{{ url_for('static', filename='uploads/' + user.profile_image) }}"
                                          alt="{{ user.username }}" class="user-avatar me-2">
@@ -77,13 +111,30 @@
                                     <div>
                                         <div>{{ user.username }}</div>
                                         <small class="text-muted">{{ user.email }}</small>
+                                        <!-- Mobile-only info -->
+                                        <div class="d-md-none mt-2">
+                                            <span class="badge bg-info role-badge">{{ user.role.name if user.role else 'No Role' }}</span>
+                                            <div class="mt-1">
+                                                {% if user.is_active %}
+                                                    {% if user.last_activity and (now() - user.last_activity).total_seconds() < 300 %}
+                                                    <span class="status-indicator status-online"></span> Online
+                                                    {% elif user.last_activity and (now() - user.last_activity).total_seconds() < 900 %}
+                                                    <span class="status-indicator status-away"></span> Away
+                                                    {% else %}
+                                                    <span class="status-indicator status-offline"></span> Offline
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="badge bg-danger">Inactive</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </td>
-                            <td>
+                            <td class="d-none d-md-table-cell">
                                 <span class="badge bg-info role-badge">{{ user.role.name if user.role else 'No Role' }}</span>
                             </td>
-                            <td>
+                            <td class="d-none d-md-table-cell">
                                 {% if user.is_active %}
                                     {% if user.last_activity and (now() - user.last_activity).total_seconds() < 300 %}
                                     <span class="status-indicator status-online"></span> Online
@@ -96,7 +147,7 @@
                                     <span class="badge bg-danger">Inactive</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td class="d-none d-md-table-cell">
                                 {% if user.last_activity %}
                                 <span title="{{ user.last_activity.strftime('%Y-%m-%d %H:%M:%S') }}">
                                     {{ user.last_activity|timeago }}
@@ -105,7 +156,7 @@
                                 Never
                                 {% endif %}
                             </td>
-                            <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td class="d-none d-md-table-cell">{{ user.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>
                                 <div class="btn-group">
                                     <a href="{{ url_for('admin.edit_user', id=user.id) }}" 
@@ -119,7 +170,7 @@
                                     {% if user != current_user %}
                                     <button type="button" 
                                             class="btn btn-sm btn-outline-danger"
-                                            onclick="confirmDelete({{ user.id }}, '{{ user.username }}')">
+                                            onclick="confirmDelete('{{ user.id }}', '{{ user.username }}')">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                     {% endif %}
@@ -131,9 +182,9 @@
                 </table>
             </div>
 
-            {% if users.pages > 1 %}
+            <!-- Pagination -->
             <nav aria-label="User pagination" class="mt-4">
-                <ul class="pagination justify-content-center">
+                <ul class="pagination justify-content-center flex-wrap">
                     {% for page in users.iter_pages() %}
                         {% if page %}
                             <li class="page-item {% if page == users.page %}active{% endif %}">
@@ -147,7 +198,6 @@
                     {% endfor %}
                 </ul>
             </nav>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -158,28 +208,26 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Confirm Delete</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 Are you sure you want to delete user <span id="deleteUsername"></span>?
-                This action cannot be undone.
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="deleteForm" method="POST">
-                    <button type="submit" class="btn btn-danger">Delete User</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
 {% block scripts %}
 <script>
 function confirmDelete(userId, username) {
     document.getElementById('deleteUsername').textContent = username;
-    document.getElementById('deleteForm').action = `/admin/user/${userId}/delete`;
+    document.getElementById('deleteForm').action = "{{ url_for('admin.delete_user', id='') }}" + userId;
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
 </script>

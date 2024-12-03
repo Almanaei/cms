@@ -1,76 +1,151 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 
-{% block title %}Manage Posts - Admin{% endblock %}
+{% block title %}Posts{% endblock %}
 
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Manage Posts</h2>
-    <a href="{{ url_for('admin.create_post') }}" class="btn btn-primary">Create New Post</a>
-</div>
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Posts</li>
+{% endblock %}
 
-<div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Category</th>
-                        <th>Author</th>
-                        <th>Created</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for post in posts.items %}
-                    <tr>
-                        <td>{{ post.title }}</td>
-                        <td>{{ post.category.name if post.category else 'Uncategorized' }}</td>
-                        <td>{{ post.author.username }}</td>
-                        <td>{{ post.created_at.strftime('%Y-%m-%d') }}</td>
-                        <td>
-                            <span class="badge {% if post.published %}bg-success{% else %}bg-warning{% endif %}">
-                                {{ 'Published' if post.published else 'Draft' }}
-                            </span>
-                        </td>
-                        <td>
-                            <a href="{{ url_for('admin.edit_post', id=post.id) }}" class="btn btn-sm btn-primary">Edit</a>
-                            <form action="{{ url_for('admin.delete_post', id=post.id) }}" method="POST" class="d-inline">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <!-- Header -->
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4">
+        <h1 class="h3 mb-3 mb-md-0">Posts</h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin.create_post') }}" class="btn btn-primary d-flex align-items-center">
+                <i class="bi bi-plus-circle me-2"></i>
+                New Post
+            </a>
+            <button type="button" class="btn btn-outline-secondary d-flex align-items-center" data-bs-toggle="collapse" data-bs-target="#filterSection">
+                <i class="bi bi-funnel me-2"></i>
+                Filters
+            </button>
         </div>
-
-        {% if posts.pages > 1 %}
-        <nav aria-label="Page navigation" class="mt-4">
-            <ul class="pagination justify-content-center">
-                {% if posts.has_prev %}
-                <li class="page-item">
-                    <a class="page-link" href="{{ url_for('admin.posts', page=posts.prev_num) }}">Previous</a>
-                </li>
-                {% endif %}
-
-                {% for page_num in posts.iter_pages() %}
-                    {% if page_num %}
-                        <li class="page-item {% if page_num == posts.page %}active{% endif %}">
-                            <a class="page-link" href="{{ url_for('admin.posts', page=page_num) }}">{{ page_num }}</a>
-                        </li>
-                    {% endif %}
-                {% endfor %}
-
-                {% if posts.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="{{ url_for('admin.posts', page=posts.next_num) }}">Next</a>
-                </li>
-                {% endif %}
-            </ul>
-        </nav>
-        {% endif %}
     </div>
+
+    <!-- Filters -->
+    <div class="collapse mb-4" id="filterSection">
+        <div class="card card-body">
+            <form action="{{ url_for('admin.posts') }}" method="GET" class="row g-3">
+                <div class="col-12 col-md-4">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All</option>
+                        <option value="draft" {% if request.args.get('status') == 'draft' %}selected{% endif %}>Draft</option>
+                        <option value="published" {% if request.args.get('status') == 'published' %}selected{% endif %}>Published</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label">Category</label>
+                    <select name="category" class="form-select">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}" {% if request.args.get('category')|int == category.id %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label">Search</label>
+                    <input type="text" name="q" class="form-control" value="{{ request.args.get('q', '') }}" placeholder="Search posts...">
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    <a href="{{ url_for('admin.posts') }}" class="btn btn-outline-secondary">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Posts List -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-3">Title</th>
+                            <th class="d-none d-md-table-cell">Author</th>
+                            <th class="d-none d-lg-table-cell">Category</th>
+                            <th class="d-none d-sm-table-cell">Status</th>
+                            <th class="d-none d-md-table-cell">Date</th>
+                            <th class="text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for post in posts %}
+                        <tr>
+                            <td class="ps-3">
+                                <div class="d-flex align-items-center">
+                                    {% if post.featured_image %}
+                                    <img src="{{ post.featured_image }}" class="rounded me-2 d-none d-sm-block" width="40" height="40" alt="">
+                                    {% endif %}
+                                    <div>
+                                        <div class="fw-bold">{{ post.title }}</div>
+                                        <small class="text-muted d-block d-sm-none">
+                                            {{ post.author.username }} • {{ post.created_at.strftime('%b %d, %Y') }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="d-none d-md-table-cell">{{ post.author.username }}</td>
+                            <td class="d-none d-lg-table-cell">
+                                {% if post.category %}
+                                <span class="badge bg-info">{{ post.category.name }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="d-none d-sm-table-cell">
+                                {% if post.published %}
+                                <span class="badge bg-success">Published</span>
+                                {% else %}
+                                <span class="badge bg-warning">Draft</span>
+                                {% endif %}
+                            </td>
+                            <td class="d-none d-md-table-cell">{{ post.created_at.strftime('%b %d, %Y') }}</td>
+                            <td class="text-end pe-3">
+                                <div class="btn-group">
+                                    <a href="{{ url_for('admin.edit_post', id=post.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil"></i>
+                                        <span class="d-none d-sm-inline">Edit</span>
+                                    </a>
+                                    <a href="{{ url_for('admin.preview_post', id=post.id) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-eye"></i>
+                                        <span class="d-none d-sm-inline">Preview</span>
+                                    </a>
+                                    <form action="{{ url_for('admin.delete_post', id=post.id) }}" method="POST" style="display: inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash"></i>
+                                            <span class="d-none d-sm-inline">Delete</span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% for page in pagination.iter_pages() %}
+                {% if page %}
+                    <li class="page-item {% if page == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('admin.posts', page=page, **request.args) }}">{{ page }}</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </nav>
+    {% endif %}
 </div>
 {% endblock %}
