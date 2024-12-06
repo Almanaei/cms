@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, current_app
 from app import db
 from app.models import UserActivity
 from datetime import datetime
