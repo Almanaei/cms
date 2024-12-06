@@ -1,7 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SelectField, BooleanField, DateTimeField, FileField
-from wtforms.validators import DataRequired, Length, Optional
-from flask_wtf.file import FileAllowed
+from wtforms import StringField, TextAreaField, SelectField, BooleanField, DateTimeField, FileField, PasswordField
+from wtforms.validators import DataRequired, Length, Optional, Email
 
 class PostForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired(), Length(max=200)])
@@ -20,3 +19,10 @@ class PostForm(FlaskForm):
         FileAllowed(['jpg', 'jpeg', 'png', 'gif'], 'Images only!')
     ])
     tags = StringField('Tags', validators=[Optional()])
+
+class UserForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=3, max=64)])
+    email = StringField('Email', validators=[DataRequired(), Email(), Length(max=120)])
+    password = PasswordField('Password', validators=[Optional(), Length(min=6)])
+    role_id = SelectField('Role', coerce=int, validators=[DataRequired()])
+    is_active = BooleanField('Active')
