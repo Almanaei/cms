@@ -4,27 +4,6 @@
 
 {% block styles %}
 <style>
-.profile-image-preview {
-    width: 150px;
-    height: 150px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-bottom: 1rem;
-}
-
-.profile-image-placeholder {
-    width: 150px;
-    height: 150px;
-    border-radius: 50%;
-    background-color: #e9ecef;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
-    color: #adb5bd;
-    margin-bottom: 1rem;
-}
-
 .permission-group {
     border: 1px solid #dee2e6;
     border-radius: 0.25rem;
@@ -55,7 +34,7 @@
         <div class="col-md-8">
             <div class="card">
                 <div class="card-body">
-                    <form method="POST" enctype="multipart/form-data">
+                    <form method="POST">
                         {{ form.csrf_token }}
                         
                         <div class="row mb-4">
@@ -115,7 +94,7 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     {{ form.role_id.label(class="form-label") }}
-                                    {{ form.role_id(class="form-control" + (" is-invalid" if form.role_id.errors else "")) }}
+                                    {{ form.role_id(class="form-select" + (" is-invalid" if form.role_id.errors else "")) }}
                                     {% if form.role_id.errors %}
                                     <div class="invalid-feedback">
                                         {{ form.role_id.errors[0] }}
@@ -124,33 +103,17 @@
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="form-group">
-                                    <label class="form-label">Status</label>
-                                    <div class="custom-control custom-switch">
-                                        {{ form.is_active(class="custom-control-input") }}
-                                        <label class="custom-control-label" for="is_active">Active</label>
-                                    </div>
+                                <div class="form-check mt-4">
+                                    {{ form.is_active(class="form-check-input") }}
+                                    {{ form.is_active.label(class="form-check-label") }}
                                 </div>
                             </div>
                         </div>
 
-                        <div class="form-group mb-4">
-                            {{ form.profile_image.label(class="form-label") }}
-                            {{ form.profile_image(class="form-control" + (" is-invalid" if form.profile_image.errors else ""), onchange="previewImage(this)") }}
-                            {% if form.profile_image.errors %}
-                            <div class="invalid-feedback">
-                                {{ form.profile_image.errors[0] }}
-                            </div>
-                            {% endif %}
-                            <small class="form-text text-muted">
-                                Recommended size: 200x200 pixels
-                            </small>
-                        </div>
-
-                        <div class="text-end">
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin.users') }}" class="btn btn-secondary">Cancel</a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> 
-                                {{ 'Create User' if not user else 'Save Changes' }}
+                                {{ 'Create' if not user else 'Update' }} User
                             </button>
                         </div>
                     </form>
@@ -159,80 +122,21 @@
         </div>
 
         <div class="col-md-4">
-            <!-- Profile Image Preview -->
-            <div class="card mb-4">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Profile Image</h5>
-                    {% if user and user.profile_image %}
-                    <img src="{{ url_for('static', filename='uploads/' + user.profile_image) }}"
-                         alt="Profile Preview" 
-                         class="profile-image-preview" 
-                         id="imagePreview">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">User Information</h5>
+                </div>
+                <div class="card-body">
+                    {% if user %}
+                    <p><strong>Created:</strong> {{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                    <p><strong>Last Modified:</strong> {{ user.updated_at.strftime('%Y-%m-%d %H:%M:%S') if user.updated_at else 'Never' }}</p>
+                    <p><strong>Last Login:</strong> {{ user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else 'Never' }}</p>
                     {% else %}
-                    <div class="profile-image-placeholder" id="imagePlaceholder">
-                        <i class="fas fa-user"></i>
-                    </div>
-                    <img src="#" 
-                         alt="Profile Preview" 
-                         class="profile-image-preview" 
-                         id="imagePreview" 
-                         style="display: none;">
+                    <p class="text-muted">User information will be available after creation.</p>
                     {% endif %}
                 </div>
             </div>
-
-            <!-- User Info -->
-            {% if user %}
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">User Information</h5>
-                    <div class="mb-3">
-                        <small class="text-muted d-block">Created</small>
-                        {{ user.created_at.strftime('%B %d, %Y') }}
-                    </div>
-                    <div class="mb-3">
-                        <small class="text-muted d-block">Last Login</small>
-                        {% if user.last_login %}
-                        {{ user.last_login.strftime('%B %d, %Y %H:%M') }}
-                        {% else %}
-                        Never
-                        {% endif %}
-                    </div>
-                    <div>
-                        <small class="text-muted d-block">Last Activity</small>
-                        {% if user.last_activity %}
-                        {{ user.last_activity|timeago }}
-                        {% else %}
-                        Never
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-function previewImage(input) {
-    const preview = document.getElementById('imagePreview');
-    const placeholder = document.getElementById('imagePlaceholder');
-    
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            preview.src = e.target.result;
-            preview.style.display = 'block';
-            if (placeholder) {
-                placeholder.style.display = 'none';
-            }
-        }
-        
-        reader.readAsDataURL(input.files[0]);
-    }
-}
-</script>
 {% endblock %}
