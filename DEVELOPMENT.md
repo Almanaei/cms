@@ -2,10 +2,58 @@
 
 This guide explains how to set up and maintain both local development and production environments for the CMS.
 
+## Database Architecture
+
+### Development vs Production Database
+Our application uses different database systems for development and production:
+
+#### Production Environment (cPanel)
+- Database: MySQL
+- Driver: PyMySQL
+- Connection string format:
+  ```
+  SQLALCHEMY_DATABASE_URI=mysql+pymysql://username:password@localhost/database
+  ```
+
+#### Development Environment (Local)
+- Database: PostgreSQL
+- Driver: psycopg2-binary
+- Connection string format:
+  ```
+  SQLALCHEMY_DATABASE_URI=postgresql://postgres:your_password@localhost/cms_local
+  ```
+
+### Why Different Databases?
+1. **Environment Separation**
+   - Keeps development work isolated from production data
+   - Allows for safe testing of database changes
+   - Prevents accidental modification of production data
+
+2. **SQLAlchemy Abstraction**
+   - Our ORM (SQLAlchemy) handles database differences
+   - Same Python code works with both databases
+   - No need to modify application code between environments
+
+3. **Development Benefits**
+   - PostgreSQL offers better development tools
+   - Stronger data integrity checks during development
+   - Easier local setup and maintenance
+
+### Best Practices
+1. **Testing Database Changes**
+   - Test all database migrations on both PostgreSQL and MySQL
+   - Be aware of syntax differences between databases
+   - Document any database-specific behaviors
+
+2. **Schema Changes**
+   - Always test schema changes in development first
+   - Verify migrations work on both database systems
+   - Keep track of any database-specific SQL commands
+
 ## Local Development Setup
 
 ### 1. Environment Setup
-1. Install Python 3.11 and MySQL locally
+1. Install Python 3.11 and PostgreSQL locally
 2. Create a local database named 'cms_local'
 3. Configure `.env.development` with your local settings:
    - Update database credentials
@@ -109,7 +157,7 @@ cms/
 ### Common Issues
 1. Database Connection:
    - Verify credentials in .env files
-   - Check MySQL service is running
+   - Check database service is running
    - Ensure database exists
 
 2. Dependencies:
@@ -125,4 +173,4 @@ cms/
 - Check application logs in cPanel
 - Review Git commit history
 - Consult Flask documentation
-- Check MySQL logs for database issues
+- Check database logs for issues
