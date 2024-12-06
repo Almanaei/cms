@@ -512,31 +512,65 @@ def create_user():
 @login_required
 @permission_required(Role.MANAGE_USERS)
 def edit_user(id):
-    user = User.query.get_or_404(id)
-    if request.method == 'POST':
-        user.username = request.form['username']
-        user.email = request.form['email']
-        user.role_id = request.form.get('role_id')
-        user.is_active = request.form.get('is_active') == 'on'
+    try:
+        user = User.query.get_or_404(id)
+        if request.method == 'POST':
+            # Check if username already exists (excluding current user)
+            existing_user = User.query.filter(User.username == request.form['username'], User.id != id).first()
+            if existing_user:
+                flash('Username already exists', 'danger')
+                roles = Role.query.all()
+                return render_template('admin/edit_user.html', user=user, roles=roles)
+            
+            # Check if email already exists (excluding current user)
+            existing_email = User.query.filter(User.email == request.form['email'], User.id != id).first()
+            if existing_email:
+                flash('Email already exists', 'danger')
+                roles = Role.query.all()
+                return render_template('admin/edit_user.html', user=user, roles=roles)
+            
+            # Validate that role exists
+            role_id = request.form.get('role_id')
+            if not role_id:
+                flash('Role is required', 'danger')
+                roles = Role.query.all()
+                return render_template('admin/edit_user.html', user=user, roles=roles)
+            
+            role = Role.query.get(role_id)
+            if not role:
+                flash('Selected role does not exist', 'danger')
+                roles = Role.query.all()
+                return render_template('admin/edit_user.html', user=user, roles=roles)
+            
+            user.username = request.form['username']
+            user.email = request.form['email']
+            user.role_id = role_id
+            user.is_active = request.form.get('is_active') == 'on'
+            
+            if request.form.get('password'):
+                user.set_password(request.form['password'])
+                user.must_change_password = True
+                user.password_changed_at = None
+            
+            db.session.commit()
+            
+            current_user.log_activity(
+                'updated_user',
+                f'Updated user: {user.username}',
+                request.remote_addr
+            )
+            
+            flash('User updated successfully!', 'success')
+            return redirect(url_for('admin.users'))
         
-        if request.form.get('password'):
-            user.set_password(request.form['password'])
-            user.must_change_password = True
-            user.password_changed_at = None
+        roles = Role.query.all()
+        return render_template('admin/edit_user.html', user=user, roles=roles)
         
-        db.session.commit()
-        
-        current_user.log_activity(
-            'updated_user',
-            f'Updated user: {user.username}',
-            request.remote_addr
-        )
-        
-        flash('User updated successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error editing user: {str(e)}')
+        flash('An error occurred while editing the user. Please try again.', 'danger')
         return redirect(url_for('admin.users'))
-    
-    roles = Role.query.all()
-    return render_template('admin/edit_user.html', user=user, roles=roles)
 
 @bp.route('/user/<int:id>/delete', methods=['POST'])
 @login_required
