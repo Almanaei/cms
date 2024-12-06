@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, SelectField, BooleanField, DateTimeField, FileField, PasswordField
 from wtforms.validators import DataRequired, Length, Optional, Email
+from flask_wtf.file import FileAllowed
 
 class PostForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired(), Length(max=200)])
