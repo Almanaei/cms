@@ -448,7 +448,7 @@ def users():
         current_time=datetime.utcnow()
     )
 
-@bp.route('/user/new', methods=['GET', 'POST'])
+@bp.route('/user/create', methods=['GET', 'POST'])
 @login_required
 @permission_required(Role.MANAGE_USERS)
 def create_user():

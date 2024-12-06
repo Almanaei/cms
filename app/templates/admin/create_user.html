@@ -17,38 +17,63 @@
                 </div>
                 <div class="card-body">
                     <form method="POST">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {{ form.csrf_token }}
                         
                         <div class="mb-3">
-                            <label for="username" class="form-label">Username</label>
-                            <input type="text" class="form-control" id="username" name="username" required>
+                            {{ form.username.label(class="form-label") }}
+                            {{ form.username(class="form-control") }}
+                            {% if form.username.errors %}
+                                {% for error in form.username.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
                         </div>
 
                         <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
+                            {{ form.email.label(class="form-label") }}
+                            {{ form.email(class="form-control") }}
+                            {% if form.email.errors %}
+                                {% for error in form.email.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
                         </div>
 
                         <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
+                            {{ form.password.label(class="form-label") }}
+                            {{ form.password(class="form-control") }}
+                            {% if form.password.errors %}
+                                {% for error in form.password.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
                             <small class="text-muted">User will be required to change password on first login.</small>
                         </div>
 
                         <div class="mb-3">
-                            <label for="role" class="form-label">Role</label>
-                            <select class="form-select" id="role" name="role_id" required>
-                                <option value="">Select a role</option>
-                                {% for role in roles %}
-                                <option value="{{ role.id }}">{{ role.name }}</option>
+                            {{ form.confirm_password.label(class="form-label") }}
+                            {{ form.confirm_password(class="form-control") }}
+                            {% if form.confirm_password.errors %}
+                                {% for error in form.confirm_password.errors %}
+                                    <div class="text-danger">{{ error }}</div>
                                 {% endfor %}
-                            </select>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.role_id.label(class="form-label") }}
+                            {{ form.role_id(class="form-select") }}
+                            {% if form.role_id.errors %}
+                                {% for error in form.role_id.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
                         </div>
 
                         <div class="mb-3">
                             <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="is_active" name="is_active" checked>
-                                <label class="form-check-label" for="is_active">Active</label>
+                                {{ form.is_active(class="form-check-input") }}
+                                {{ form.is_active.label(class="form-check-label") }}
                             </div>
                         </div>
 
@@ -69,8 +94,8 @@
                 <div class="card-body">
                     <h6>User Roles</h6>
                     <ul class="list-unstyled">
-                        {% for role in roles %}
-                        <li><strong>{{ role.name }}</strong>: {{ role.description or 'No description available' }}</li>
+                        {% for choice in form.role_id.choices %}
+                        <li><strong>{{ choice[1] }}</strong></li>
                         {% endfor %}
                     </ul>
                     
