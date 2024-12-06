@@ -10,6 +10,7 @@ from datetime import datetime
 import json
 import shutil
 from app.forms import PostForm, UserForm  # Import UserForm
+from app.utils.activity_logger import log_activity
 
 def admin_required(f):
     @wraps(f)
@@ -451,62 +452,67 @@ def users():
 @login_required
 @permission_required(Role.MANAGE_USERS)
 def create_user():
-    if request.method == 'POST':
-        try:
-            # Validate that role exists
-            role_id = request.form.get('role_id')
-            if not role_id:
-                flash('Role is required', 'danger')
-                roles = Role.query.all()
-                return render_template('admin/create_user.html', roles=roles)
-            
-            role = Role.query.get(role_id)
-            if not role:
-                flash('Selected role does not exist', 'danger')
-                roles = Role.query.all()
-                return render_template('admin/create_user.html', roles=roles)
-            
-            # Check if username or email already exists
-            if User.query.filter_by(username=request.form['username']).first():
+    try:
+        form = UserForm()
+        roles = Role.query.all()
+        form.role_id.choices = [(role.id, role.name) for role in roles]
+        
+        if form.validate_on_submit():
+            # Check if username already exists
+            if User.query.filter_by(username=form.username.data).first():
                 flash('Username already exists', 'danger')
-                roles = Role.query.all()
-                return render_template('admin/create_user.html', roles=roles)
+                return render_template('admin/create_user.html', form=form)
             
-            if User.query.filter_by(email=request.form['email']).first():
+            # Check if email already exists
+            if User.query.filter_by(email=form.email.data).first():
                 flash('Email already exists', 'danger')
-                roles = Role.query.all()
-                return render_template('admin/create_user.html', roles=roles)
+                return render_template('admin/create_user.html', form=form)
             
             user = User(
-                username=request.form['username'],
-                email=request.form['email'],
-                role_id=role_id,
-                is_active=request.form.get('is_active') == 'on',
-                must_change_password=True
+                username=form.username.data,
+                email=form.email.data,
+                role_id=form.role_id.data,
+                is_active=form.is_active.data
             )
-            user.set_password(request.form['password'])
+            user.set_password(form.password.data)
+            user.must_change_password = True
             
             db.session.add(user)
             db.session.commit()
             
-            current_user.log_activity(
-                'created_user',
-                f'Created user: {user.username}',
-                request.remote_addr
+            # Log the activity
+            log_activity(
+                user_id=current_user.id,
+                activity_type='create_user',
+                activity_data={
+                    'created_user_id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role_id': user.role_id,
+                    'is_active': user.is_active
+                }
             )
             
             flash('User created successfully!', 'success')
             return redirect(url_for('admin.users'))
             
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f'Error creating user: {str(e)}')
-            flash('An error occurred while creating the user. Please try again.', 'danger')
-            roles = Role.query.all()
-            return render_template('admin/create_user.html', roles=roles)
-    
-    roles = Role.query.all()
-    return render_template('admin/create_user.html', roles=roles)
+        return render_template('admin/create_user.html', form=form)
+        
+    except Exception as e:
+        db.session.rollback()
+        # Log the failed attempt
+        log_activity(
+            user_id=current_user.id,
+            activity_type='create_user',
+            activity_data={
+                'attempted_username': form.username.data if form else None,
+                'error': str(e)
+            },
+            success=False
+        )
+        current_app.logger.error(f'Error creating user: {str(e)}')
+        flash('An error occurred while creating the user. Please try again.', 'danger')
+        return redirect(url_for('admin.users'))
 
 @bp.route('/user/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -533,6 +539,22 @@ def edit_user(id):
                 flash('Email already exists', 'danger')
                 return render_template('admin/edit_user.html', form=form, user=user)
             
+            # Track changes for activity log
+            changes = {}
+            if user.username != form.username.data:
+                changes['username'] = {'old': user.username, 'new': form.username.data}
+            if user.email != form.email.data:
+                changes['email'] = {'old': user.email, 'new': form.email.data}
+            if user.role_id != form.role_id.data:
+                old_role = Role.query.get(user.role_id)
+                new_role = Role.query.get(form.role_id.data)
+                changes['role'] = {'old': old_role.name if old_role else None, 'new': new_role.name if new_role else None}
+            if user.is_active != form.is_active.data:
+                changes['is_active'] = {'old': user.is_active, 'new': form.is_active.data}
+            if form.password.data:
+                changes['password'] = {'changed': True}
+            
+            # Update user data
             user.username = form.username.data
             user.email = form.email.data
             user.role_id = form.role_id.data
@@ -545,10 +567,15 @@ def edit_user(id):
             
             db.session.commit()
             
-            current_user.log_activity(
-                'updated_user',
-                f'Updated user: {user.username}',
-                request.remote_addr
+            # Log the activity with detailed changes
+            log_activity(
+                user_id=current_user.id,
+                activity_type='edit_user',
+                activity_data={
+                    'target_user_id': user.id,
+                    'target_username': user.username,
+                    'changes': changes
+                }
             )
             
             flash('User updated successfully!', 'success')
@@ -565,6 +592,16 @@ def edit_user(id):
         
     except Exception as e:
         db.session.rollback()
+        # Log the failed attempt
+        log_activity(
+            user_id=current_user.id,
+            activity_type='edit_user',
+            activity_data={
+                'target_user_id': id,
+                'error': str(e)
+            },
+            success=False
+        )
         current_app.logger.error(f'Error editing user: {str(e)}')
         flash('An error occurred while editing the user. Please try again.', 'danger')
         return redirect(url_for('admin.users'))
@@ -573,23 +610,52 @@ def edit_user(id):
 @login_required
 @permission_required(Role.MANAGE_USERS)
 def delete_user(id):
-    user = User.query.get_or_404(id)
-    if user == current_user:
-        flash('You cannot delete your own account!', 'danger')
+    try:
+        user = User.query.get_or_404(id)
+        
+        # Don't allow deleting your own account
+        if user.id == current_user.id:
+            flash('You cannot delete your own account.', 'danger')
+            return redirect(url_for('admin.users'))
+        
+        # Store user info for logging before deletion
+        user_info = {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'role_id': user.role_id
+        }
+        
+        db.session.delete(user)
+        db.session.commit()
+        
+        # Log the successful deletion
+        log_activity(
+            user_id=current_user.id,
+            activity_type='delete_user',
+            activity_data={
+                'deleted_user': user_info
+            }
+        )
+        
+        flash('User deleted successfully!', 'success')
         return redirect(url_for('admin.users'))
-    
-    username = user.username
-    db.session.delete(user)
-    db.session.commit()
-    
-    current_user.log_activity(
-        'deleted_user',
-        f'Deleted user: {username}',
-        request.remote_addr
-    )
-    
-    flash('User deleted successfully!', 'success')
-    return redirect(url_for('admin.users'))
+        
+    except Exception as e:
+        db.session.rollback()
+        # Log the failed deletion attempt
+        log_activity(
+            user_id=current_user.id,
+            activity_type='delete_user',
+            activity_data={
+                'target_user_id': id,
+                'error': str(e)
+            },
+            success=False
+        )
+        current_app.logger.error(f'Error deleting user: {str(e)}')
+        flash('An error occurred while deleting the user. Please try again.', 'danger')
+        return redirect(url_for('admin.users'))
 
 @bp.route('/user-activity')
 @login_required
