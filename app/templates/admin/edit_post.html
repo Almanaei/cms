@@ -70,56 +70,47 @@
           novalidate>
         {{ form.csrf_token }}
         
-        <div class="mb-3">
-            <h1 class="h3 d-inline align-middle">{{ 'Edit' if post else 'Create' }} Post</h1>
-            <div class="float-end">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-check-lg me-1"></i>
-                    {{ 'Update' if post else 'Create' }}
-                </button>
-                <a href="{{ url_for('admin.posts') }}" class="btn btn-secondary">
-                    <i class="bi bi-x-lg me-1"></i>
-                    Cancel
-                </a>
-            </div>
-        </div>
-
         <div class="row g-4">
             <!-- Main Content -->
             <div class="col-12 col-lg-8">
                 <div class="card">
                     <div class="card-body">
-                        <!-- Title -->
-                        <div class="mb-4">
-                            <label class="form-label">Title</label>
-                            {{ form.title(class="form-control form-control-lg", placeholder="Enter post title...") }}
-                            {% if form.title.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.title.errors %}{{ error }}{% endfor %}
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Content -->
                         <div class="mb-3">
-                            <label class="form-label">Content</label>
-                            <textarea id="editor" name="content">{{ post.content if post else '' }}</textarea>
+                            {{ form.title.label(class="form-label") }}
+                            {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
+                            {% for error in form.title.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
                         </div>
-
-                        <!-- Excerpt -->
-                        <div>
-                            <label class="form-label">Excerpt</label>
-                            {{ form.excerpt(class="form-control", rows="3", placeholder="Brief summary of the post...") }}
-                            {% if form.excerpt.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.excerpt.errors %}{{ error }}{% endfor %}
-                            </div>
-                            {% endif %}
+                        
+                        <div class="mb-3">
+                            {{ form.slug.label(class="form-label") }}
+                            {{ form.slug(class="form-control" + (" is-invalid" if form.slug.errors else "")) }}
+                            {% for error in form.slug.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.content.label(class="form-label") }}
+                            {{ form.content(id="content", class="form-control" + (" is-invalid" if form.content.errors else "")) }}
+                            {% for error in form.content.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.summary.label(class="form-label") }}
+                            {{ form.summary(class="form-control" + (" is-invalid" if form.summary.errors else ""), rows="3") }}
+                            {% for error in form.summary.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">A brief summary of your post. This will be used in post listings and meta descriptions if not specified.</div>
                         </div>
                     </div>
                 </div>
             </div>
-
+            
             <!-- Sidebar -->
             <div class="col-12 col-lg-4">
                 <!-- Settings Card -->
@@ -128,91 +119,116 @@
                         <h5 class="card-title mb-0">Post Settings</h5>
                     </div>
                     <div class="card-body">
-                        <!-- Category -->
                         <div class="mb-3">
-                            <label class="form-label">Category</label>
-                            {{ form.category_id(class="form-select") }}
-                            {% if form.category_id.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.category_id.errors %}{{ error }}{% endfor %}
-                            </div>
-                            {% endif %}
+                            {{ form.category_id.label(class="form-label") }}
+                            {{ form.category_id(class="form-select" + (" is-invalid" if form.category_id.errors else "")) }}
+                            {% for error in form.category_id.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
                         </div>
-
-                        <!-- Status -->
+                        
                         <div class="mb-3">
-                            <label class="form-label">Status</label>
-                            {{ form.status(class="form-select") }}
-                            {% if form.status.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.status.errors %}{{ error }}{% endfor %}
-                            </div>
-                            {% endif %}
+                            {{ form.tags.label(class="form-label") }}
+                            {{ form.tags(class="form-control" + (" is-invalid" if form.tags.errors else ""), placeholder="Enter tags separated by commas") }}
+                            {% for error in form.tags.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
                         </div>
-
-                        <!-- Publish Date -->
+                        
                         <div class="mb-3">
-                            <label class="form-label">Publish Date</label>
-                            {{ form.publish_date(class="form-control", type="datetime-local") }}
-                            {% if form.publish_date.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.publish_date.errors %}{{ error }}{% endfor %}
+                            <div class="form-check form-switch">
+                                {{ form.published(class="form-check-input") }}
+                                {{ form.published.label(class="form-check-label") }}
                             </div>
-                            {% endif %}
                         </div>
-
-                        <!-- Featured Image -->
+                        
                         <div class="mb-3">
-                            <label class="form-label">Featured Image</label>
-                            <input type="file" name="featured_image" class="form-control" accept="image/*">
-                            {% if post and post.featured_image %}
-                            <div class="mt-2">
-                                <img src="{{ url_for('static', filename='uploads/' + post.featured_image) }}" 
-                                     alt="Featured image" 
-                                     class="img-thumbnail" 
-                                     style="max-height: 200px">
-                                <button type="button" 
-                                        class="btn btn-sm btn-danger mt-2"
-                                        class="btn btn-sm btn-danger mt-2">
-                                    <i class="bi bi-trash"></i> Remove Image
-                                </button>
+                            <div class="form-check form-switch">
+                                {{ form.schedule(class="form-check-input", id="schedule") }}
+                                {{ form.schedule.label(class="form-check-label") }}
                             </div>
-                            {% endif %}
+                        </div>
+                        
+                        <div id="scheduleFields" class="mb-3" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    {{ form.scheduled_date.label(class="form-label") }}
+                                    {{ form.scheduled_date(class="form-control", type="date") }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ form.scheduled_time.label(class="form-label") }}
+                                    {{ form.scheduled_time(class="form-control", type="time") }}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-
+                
                 <!-- SEO Card -->
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card mb-4">
+                    <div class="card-header">
                         <h5 class="card-title mb-0">SEO Settings</h5>
-                        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="collapse" data-bs-target="#seoCollapse">
-                            <i class="bi bi-chevron-down"></i>
-                        </button>
                     </div>
-                    <div class="collapse show" id="seoCollapse">
-                        <div class="card-body">
-                            <!-- Meta Title -->
-                            <div class="mb-3">
-                                <label class="form-label">Meta Title</label>
-                                {{ form.meta_title(class="form-control", placeholder="SEO title...") }}
-                            </div>
-
-                            <!-- Meta Description -->
-                            <div class="mb-3">
-                                <label class="form-label">Meta Description</label>
-                                {{ form.meta_description(class="form-control", rows="3", placeholder="SEO description...") }}
-                            </div>
-
-                            <!-- Slug -->
-                            <div>
-                                <label class="form-label">URL Slug</label>
-                                {{ form.slug(class="form-control", placeholder="post-url-slug") }}
-                            </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.meta_title.label(class="form-label") }}
+                            {{ form.meta_title(class="form-control" + (" is-invalid" if form.meta_title.errors else "")) }}
+                            {% for error in form.meta_title.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
                         </div>
+                        
+                        <div class="mb-3">
+                            {{ form.meta_description.label(class="form-label") }}
+                            {{ form.meta_description(class="form-control" + (" is-invalid" if form.meta_description.errors else ""), rows="3") }}
+                            {% for error in form.meta_description.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Featured Image Card -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Featured Image</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.featured_image.label(class="form-label") }}
+                            {{ form.featured_image(class="form-control" + (" is-invalid" if form.featured_image.errors else "")) }}
+                            {% for error in form.featured_image.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if post and post.featured_image %}
+                        <div id="image-preview" class="image-preview-container">
+                            <img src="{{ url_for('static', filename='uploads/' + post.featured_image) }}" 
+                                 alt="Featured image" 
+                                 class="image-preview">
+                            <button type="button" 
+                                    class="btn btn-sm btn-danger image-preview-remove" 
+                                    id="remove-image-btn" 
+                                    data-post-id="{{ post.id }}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="{{ url_for('admin.posts') }}" class="btn btn-secondary">Cancel</a>
+            {% if post %}
+            <a href="{{ url_for('admin.preview_post', id=post.id) }}" 
+               class="btn btn-info" 
+               target="_blank">Preview</a>
+            {% endif %}
         </div>
     </form>
 </div>
@@ -222,141 +238,157 @@
 {{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Image preview functionality
-    const imageUpload = document.getElementById('image-upload');
-    const previewContainer = document.getElementById('image-preview-container');
-    const previewImage = document.getElementById('preview-image');
-    const currentImage = document.getElementById('current-image');
-    const removeButton = document.getElementById('remove-image');
+    // Handle scheduling fields visibility
+    const scheduleSwitch = document.getElementById('schedule');
+    const scheduleFields = document.getElementById('scheduleFields');
+    
+    function toggleScheduleFields() {
+        scheduleFields.style.display = scheduleSwitch.checked ? 'block' : 'none';
+    }
+    
+    // Initial state
+    toggleScheduleFields();
+    
+    // Listen for changes
+    scheduleSwitch.addEventListener('change', toggleScheduleFields);
+});
 
-    if (imageUpload) {
-        imageUpload.addEventListener('change', function() {
-            const file = this.files[0];
+// Handle image preview
+document.addEventListener('DOMContentLoaded', function() {
+    const imageInput = document.getElementById('featured_image');
+    const previewContainer = document.getElementById('image-preview');
+    
+    if (imageInput) {
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
+                
                 reader.onload = function(e) {
-                    previewImage.src = e.target.result;
-                    previewContainer.classList.remove('d-none');
-                    if (currentImage) {
-                        currentImage.classList.add('d-none');
+                    // Create or update preview
+                    if (!previewContainer) {
+                        const newPreview = document.createElement('div');
+                        newPreview.id = 'image-preview';
+                        newPreview.innerHTML = `
+                            <div class="position-relative">
+                                <img src="${e.target.result}" class="img-fluid mb-2" style="max-height: 200px;">
+                                <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2" onclick="clearImagePreview()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>`;
+                        imageInput.parentNode.appendChild(newPreview);
+                    } else {
+                        const previewImage = previewContainer.querySelector('img');
+                        previewImage.src = e.target.result;
                     }
-                }
+                };
+                
                 reader.readAsDataURL(file);
             }
         });
     }
 
-    if (removeButton) {
-        removeButton.addEventListener('click', function() {
-            currentImage.classList.add('d-none');
-            imageUpload.value = '';
-            // Add a hidden input to mark the image for deletion
-            const deleteInput = document.createElement('input');
-            deleteInput.type = 'hidden';
-            deleteInput.name = 'delete_image';
-            deleteInput.value = 'true';
-            imageUpload.parentNode.appendChild(deleteInput);
-        });
-    }
-
-    // Auto-generate slug from title
-    const titleInput = document.querySelector('input[name="title"]');
-    const slugInput = document.querySelector('input[name="slug"]');
-    
-    if (titleInput && slugInput) {
-        titleInput.addEventListener('input', function() {
-            if (!slugInput.value || slugInput.value === '') {
-                slugInput.value = this.value
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]+/g, '-')
-                    .replace(/(^-|-$)/g, '');
+    if (document.getElementById('remove-image-btn')) {
+        document.getElementById('remove-image-btn').addEventListener('click', function() {
+            if (confirm('Are you sure you want to remove the featured image?')) {
+                const postId = this.dataset.postId;
+                fetch(`/admin/post/${postId}/remove-featured-image`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const container = document.getElementById('image-preview');
+                        if (container) {
+                            container.remove();
+                        }
+                        this.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to remove image. Please try again.');
+                });
             }
         });
     }
-
-    // Form validation
-    const form = document.getElementById('postForm');
-    form.addEventListener('submit', function(event) {
-        if (!form.checkValidity()) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-        form.classList.add('was-validated');
-    });
 });
 
-function removeFeaturedImage(url) {
-    if (confirm('Are you sure you want to remove the featured image?')) {
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Failed to remove image');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred');
-        });
+function clearImagePreview() {
+    const previewContainer = document.getElementById('image-preview');
+    const featuredImageInput = document.getElementById('featured_image');
+    previewContainer.remove();
+    if (featuredImageInput) {
+        featuredImageInput.value = '';
     }
 }
 
+// Initialize CKEditor with custom configuration
 ClassicEditor
-    .create(document.querySelector('#editor'), {
+    .create(document.querySelector('#content'), {
+        toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', 'blockQuote', 'insertTable', 'imageUpload', 'undo', 'redo'],
         simpleUpload: {
-            uploadUrl: '{{ url_for("admin.upload_editor_image") }}',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            }
+            uploadUrl: '{{ url_for("admin.upload_editor_image") }}'
         },
-        toolbar: {
-            items: [
-                'heading',
-                '|',
-                'bold',
-                'italic',
-                'link',
-                'bulletedList',
-                'numberedList',
-                '|',
-                'outdent',
-                'indent',
-                '|',
-                'imageUpload',
-                'blockQuote',
-                'insertTable',
-                'mediaEmbed',
-                'undo',
-                'redo'
+        heading: {
+            options: [
+                { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
+                { model: 'heading1', view: 'h1', title: 'Heading 1', class: 'ck-heading_heading1' },
+                { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
+                { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' }
             ]
-        },
-        language: 'en',
-        image: {
-            toolbar: [
-                'imageTextAlternative',
-                'imageStyle:full',
-                'imageStyle:side'
-            ]
-        },
-        table: {
-            contentToolbar: [
-                'tableColumn',
-                'tableRow',
-                'mergeTableCells'
-            ]
-        },
+        }
     })
     .catch(error => {
-        console.error(error);
+        console.error('Error initializing CKEditor:', error);
     });
+
+// Auto-generate slug from title
+const titleInput = document.getElementById('title');
+const slugInput = document.getElementById('slug');
+
+if (titleInput && slugInput) {
+    titleInput.addEventListener('input', function() {
+        if (!slugInput.dataset.manuallyChanged) {
+            slugInput.value = generateSlug(this.value);
+        }
+    });
+
+    slugInput.addEventListener('input', function() {
+        this.dataset.manuallyChanged = true;
+    });
+}
+
+function generateSlug(text) {
+    return text.toString().toLowerCase()
+        .replace(/\s+/g, '-')           // Replace spaces with -
+        .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
+        .replace(/\-\-+/g, '-')         // Replace multiple - with single -
+        .replace(/^-+/, '')             // Trim - from start of text
+        .replace(/-+$/, '');            // Trim - from end of text
+}
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const title = document.getElementById('title').value.trim();
+    const content = document.querySelector('.ck-content').innerHTML.trim();
+    
+    if (!title) {
+        e.preventDefault();
+        alert('Please enter a title for the post.');
+        return false;
+    }
+    
+    if (!content || content === '<p>&nbsp;</p>') {
+        e.preventDefault();
+        alert('Please enter some content for the post.');
+        return false;
+    }
+    
+    return true;
+});
 </script>
 {% endblock %}
-

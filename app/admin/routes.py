@@ -64,8 +64,23 @@ def create_post():
     
     if form.validate_on_submit():
         post = Post()
-        form.populate_obj(post)
+        # Don't populate tags field or featured_image directly
+        form_data = {field.name: field.data for field in form 
+                    if field.name not in ['tags', 'featured_image']}
+        for field, value in form_data.items():
+            setattr(post, field, value)
+            
         post.user_id = current_user.id
+        
+        # Handle tags
+        if form.tags.data:
+            tag_names = [t.strip() for t in form.tags.data.split(',') if t.strip()]
+            for tag_name in tag_names:
+                tag = Tag.query.filter_by(name=tag_name).first()
+                if not tag:
+                    tag = Tag(name=tag_name)
+                    db.session.add(tag)
+                post.tags.append(tag)
         
         # Handle scheduling
         if form.schedule.data:
@@ -80,29 +95,23 @@ def create_post():
         # Handle featured image
         if form.featured_image.data:
             file = form.featured_image.data
-            if file.filename:
+            if file and file.filename:
+                # Create upload directory if it doesn't exist
+                upload_folder = current_app.config['UPLOAD_FOLDER']
+                os.makedirs(upload_folder, exist_ok=True)
+                
                 filename = secure_filename(file.filename)
-                file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+                file_path = os.path.join(upload_folder, filename)
+                file.save(file_path)
                 post.featured_image = filename
-        
-        # Handle tags
-        if form.tags.data:
-            tags = form.tags.data.split(',')
-            for tag_name in tags:
-                tag_name = tag_name.strip()
-                if tag_name:
-                    tag = Tag.query.filter_by(name=tag_name).first()
-                    if not tag:
-                        tag = Tag(name=tag_name)
-                    post.tags.append(tag)
         
         db.session.add(post)
         db.session.commit()
         
         flash('Post created successfully!', 'success')
         return redirect(url_for('admin.posts'))
-        
-    return render_template('admin/edit_post.html', form=form)
+    
+    return render_template('admin/edit_post.html', form=form, post=None)
 
 @bp.route('/categories')
 @login_required
@@ -524,7 +533,7 @@ def delete_user(id):
 @admin_required
 def user_activity_list():
     page = request.args.get('page', 1, type=int)
-    activities = UserActivity.query.order_by(UserActivity.created_at.desc()).paginate(
+    activities = UserActivity.query.order_by(UserActivity.timestamp.desc()).paginate(
         page=page, per_page=20, error_out=False)
     return render_template('admin/user_activity.html', activities=activities)
 
@@ -535,7 +544,7 @@ def user_activity_detail(id):
     user = User.query.get_or_404(id)
     page = request.args.get('page', 1, type=int)
     activities = UserActivity.query.filter_by(user_id=id).order_by(
-        UserActivity.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
+        UserActivity.timestamp.desc()).paginate(page=page, per_page=20, error_out=False)
     return render_template('admin/user_activity_detail.html', user=user, activities=activities)
 
 @bp.route('/roles')
@@ -576,10 +585,10 @@ def analytics():
     last_60_days = now - timedelta(days=60)
     
     # Get total views and growth
-    current_views = PageView.query.filter(PageView.created_at >= last_30_days).count()
+    current_views = PageView.query.filter(PageView.timestamp >= last_30_days).count()
     previous_views = PageView.query.filter(
-        PageView.created_at >= last_60_days,
-        PageView.created_at < last_30_days
+        PageView.timestamp >= last_60_days,
+        PageView.timestamp < last_30_days
     ).count()
     view_growth = ((current_views - previous_views) / (previous_views or 1)) * 100
 
@@ -629,7 +638,7 @@ def analytics():
         PageView, PageView.path.like(func.concat('/post/%', Post.slug))
     ).filter(
         Post.published == True,
-        PageView.created_at >= last_30_days
+        PageView.timestamp >= last_30_days
     ).group_by(
         Post.id
     ).order_by(
@@ -641,8 +650,8 @@ def analytics():
     for i in range(30, -1, -1):
         date = now - timedelta(days=i)
         views = PageView.query.filter(
-            PageView.created_at >= date.replace(hour=0, minute=0, second=0),
-            PageView.created_at < (date + timedelta(days=1)).replace(hour=0, minute=0, second=0)
+            PageView.timestamp >= date.replace(hour=0, minute=0, second=0),
+            PageView.timestamp < (date + timedelta(days=1)).replace(hour=0, minute=0, second=0)
         ).count()
         traffic_data.append({
             'date': date.strftime('%Y-%m-%d'),
@@ -651,7 +660,7 @@ def analytics():
 
     # Get recent user activity
     recent_activities = UserActivity.query.order_by(
-        UserActivity.created_at.desc()
+        UserActivity.timestamp.desc()
     ).limit(5).all()
 
     return render_template('admin/analytics.html',

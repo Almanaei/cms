@@ -1,8 +1,12 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 
-{% block title %}Admin Dashboard - CMS{% endblock %}
+{% block title %}Admin Dashboard{% endblock %}
 
-{% block content %}
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Dashboard</li>
+{% endblock %}
+
+{% block admin_content %}
 <div class="row">
     <div class="col-md-4">
         <div class="card text-white bg-primary mb-3">
@@ -27,6 +31,7 @@
             <div class="card-body">
                 <h5 class="card-title">Users</h5>
                 <p class="card-text display-4">{{ users_count }}</p>
+                <a href="{{ url_for('admin.users') }}" class="btn btn-light">Manage Users</a>
             </div>
         </div>
     </div>

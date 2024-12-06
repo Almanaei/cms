@@ -5,6 +5,6 @@ bp = Blueprint('admin', __name__)
 from app.admin import routes
 
 @bp.context_processor
-def inject_settings():
-    from app.models import Settings
-    return dict(Settings=Settings)
+def inject_admin_context():
+    from app.models import Settings, Role
+    return dict(Settings=Settings, Role=Role)

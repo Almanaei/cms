@@ -2,11 +2,16 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <meta name="theme-color" content="#343a40">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192x192.png') }}">
+    
     <title>{% block title %}{% endblock %} - {{ get_setting('site_name', 'CMS') }}</title>
     
     <!-- Preload Critical Resources -->
@@ -35,16 +40,34 @@
     </script>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-white fixed-top">
+    <!-- Mobile Search Overlay -->
+    <div class="search-form">
+        <form action="{{ url_for('main.search') }}" method="GET" class="d-flex">
+            <input type="search" name="q" class="form-control" placeholder="Search..." aria-label="Search">
+            <button type="submit" class="btn btn-primary ms-2"><i class="bi bi-search"></i></button>
+            <button type="button" class="btn btn-link ms-2" id="close-search"><i class="bi bi-x-lg"></i></button>
+        </form>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.index') }}">
                 <img src="{{ url_for('static', filename='icons/icon-48x48.png') }}" alt="Logo" class="me-2" width="24" height="24">
-                {{ get_setting('site_name', 'CMS') }}
+                <span class="d-none d-sm-inline">{{ get_setting('site_name', 'CMS') }}</span>
             </a>
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+            
+            <!-- Mobile Actions -->
+            <div class="d-flex align-items-center d-lg-none">
+                <button type="button" class="btn nav-link me-2" id="mobile-search-trigger">
+                    <i class="bi bi-search"></i>
+                </button>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <i class="bi bi-list"></i>
+                </button>
+            </div>
+
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
@@ -153,6 +176,41 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- Bottom Navigation for Mobile -->
+    <nav class="mobile-bottom-nav d-lg-none">
+        <div class="container">
+            <div class="row text-center">
+                <div class="col">
+                    <a href="{{ url_for('main.index') }}" class="nav-link">
+                        <i class="bi bi-house-door"></i>
+                        <span>Home</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="{{ url_for('main.categories') }}" class="nav-link">
+                        <i class="bi bi-grid"></i>
+                        <span>Categories</span>
+                    </a>
+                </div>
+                {% if current_user.is_authenticated %}
+                <div class="col">
+                    <a href="{{ url_for('auth.profile') }}" class="nav-link">
+                        <i class="bi bi-person"></i>
+                        <span>Profile</span>
+                    </a>
+                </div>
+                {% else %}
+                <div class="col">
+                    <a href="{{ url_for('auth.login') }}" class="nav-link">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        <span>Login</span>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
     <footer class="footer mt-auto py-3 bg-light">
         <div class="container text-center">
             <span class="text-muted"> {{ get_setting('site_name', 'CMS') }} {{ now.year }}</span>
@@ -216,6 +274,37 @@
 
             // Set initial theme
             setTheme(getThemePreference());
+
+            // Mobile search functionality
+            const searchTrigger = document.getElementById('mobile-search-trigger');
+            const closeSearch = document.getElementById('close-search');
+            const searchForm = document.querySelector('.search-form');
+            
+            if (searchTrigger && closeSearch && searchForm) {
+                searchTrigger.addEventListener('click', () => {
+                    searchForm.classList.add('active');
+                    searchForm.querySelector('input').focus();
+                });
+                
+                closeSearch.addEventListener('click', () => {
+                    searchForm.classList.remove('active');
+                });
+            }
+
+            // Handle mobile navigation scroll
+            let lastScroll = 0;
+            const mobileNav = document.querySelector('.mobile-bottom-nav');
+            if (mobileNav) {
+                window.addEventListener('scroll', () => {
+                    const currentScroll = window.pageYOffset;
+                    if (currentScroll > lastScroll && currentScroll > 100) {
+                        mobileNav.style.transform = 'translateY(100%)';
+                    } else {
+                        mobileNav.style.transform = 'translateY(0)';
+                    }
+                    lastScroll = currentScroll;
+                });
+            }
         });
     </script>
 

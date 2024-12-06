@@ -88,35 +88,66 @@ class Role(db.Model):
         return permissions_list
 
 class UserActivity(db.Model):
+    __tablename__ = 'user_activities'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    action = db.Column(db.String(64), nullable=False)
-    details = db.Column(db.Text)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    activity_type = db.Column(db.String(50))  # login, comment, like, share
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    activity_data = db.Column(db.JSON)
+    session_id = db.Column(db.String(100))
+    success = db.Column(db.Boolean, default=True)
     ip_address = db.Column(db.String(45))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    user = db.relationship('User', backref=db.backref('activities', lazy='dynamic'))
-    
+
+class AnalyticsEvent(db.Model):
+    __tablename__ = 'analytics_events'
+    id = db.Column(db.Integer, primary_key=True)
+    event_type = db.Column(db.String(50))  # scroll, click, search, download
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    session_id = db.Column(db.String(100))
+    url = db.Column(db.String(500))
+    element_id = db.Column(db.String(100))
+    element_class = db.Column(db.String(100))
+    event_data = db.Column(db.JSON)  # Renamed from metadata to event_data
+
+class PageView(db.Model):
+    __tablename__ = 'page_views'
+    id = db.Column(db.Integer, primary_key=True)
+    url = db.Column(db.String(500))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_pageview_user'), nullable=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id', name='fk_pageview_post'), nullable=True)
+    session_id = db.Column(db.String(100))
+    referrer = db.Column(db.String(500))
+    user_agent = db.Column(db.String(500))
+    duration = db.Column(db.Integer)
+    bounce = db.Column(db.Boolean, default=False)
+    device_type = db.Column(db.String(20))
+    country = db.Column(db.String(2))
+    browser = db.Column(db.String(50))
+    os = db.Column(db.String(50))
+    exit_url = db.Column(db.String(500))
+    page_type = db.Column(db.String(50))
+    content_id = db.Column(db.Integer)
+    post = db.relationship('Post', back_populates='page_views')
+    user = db.relationship('User', back_populates='page_views')
+
     @staticmethod
-    def record(user, action, details=None):
-        """Record a user activity."""
-        try:
-            activity = UserActivity(
-                user_id=user.id,
-                action=action,
-                details=details,
-                ip_address=request.remote_addr if request else None
-            )
-            db.session.add(activity)
-            db.session.commit()
-            return activity
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f'Error recording user activity: {str(e)}')
-            return None
-    
-    def __repr__(self):
-        return f'<UserActivity {self.action}>'
+    def record(path, ip_address=None, user_agent=None, user=None):
+        """Record a page view"""
+        page_view = PageView(
+            url=path,
+            user_id=user.id if user else None,
+            session_id=request.cookies.get('session_id'),
+            referrer=request.referrer,
+            user_agent=user_agent or request.user_agent.string,
+            device_type='mobile' if request.user_agent.platform in ['iphone', 'android'] else 'desktop',
+            browser=request.user_agent.browser,
+            os=request.user_agent.platform
+        )
+        db.session.add(page_view)
+        db.session.commit()
+        return page_view
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -177,8 +208,8 @@ class User(UserMixin, db.Model):
     def log_activity(self, action, details=None, ip_address=None):
         activity = UserActivity(
             user_id=self.id,
-            action=action,
-            details=details,
+            activity_type=action,
+            activity_data=details,
             ip_address=ip_address
         )
         db.session.add(activity)
@@ -353,39 +384,6 @@ class MediaItem(db.Model):
             return url_for('media.download_media', id=self.id, thumbnail=True)
         return None
 
-class PageView(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    path = db.Column(db.String(500), nullable=False)
-    ip_address = db.Column(db.String(45))
-    user_agent = db.Column(db.String(200))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    post = db.relationship('Post', back_populates='page_views')
-    user = db.relationship('User', back_populates='page_views')
-
-    @staticmethod
-    def record(path, ip_address=None, user_agent=None, user=None):
-        view = PageView(
-            path=path,
-            ip_address=ip_address,
-            user_agent=user_agent,
-            user_id=user.id if user else None
-        )
-        # Extract post_id from path if it's a post view
-        if path.startswith('/post/'):
-            slug = path.split('/post/')[-1]
-            post = Post.query.filter_by(slug=slug).first()
-            if post:
-                view.post_id = post.id
-        
-        try:
-            db.session.add(view)
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Failed to record page view: {str(e)}")
-
 class BackupSchedule(db.Model):
     """Model for backup schedule settings."""
     id = db.Column(db.Integer, primary_key=True)
@@ -499,6 +497,50 @@ class Settings(db.Model):
             db.session.rollback()
             current_app.logger.error(f"Error saving setting {key}: {str(e)}")
             return False
+
+class UserActivityLog(db.Model):
+    """Model for tracking detailed user activity"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    action = db.Column(db.String(50), nullable=False)  # e.g., 'report_generated', 'report_exported'
+    details = db.Column(db.JSON)  # Store additional details as JSON
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('activity_logs', lazy=True))
+
+    @staticmethod
+    def log_activity(user_id, action, details=None):
+        """Helper method to log user activity"""
+        log = UserActivityLog(
+            user_id=user_id,
+            action=action,
+            details=details or {}
+        )
+        db.session.add(log)
+        db.session.commit()
+        return log
+
+class ReportDraft(db.Model):
+    """Model for storing report drafts"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(100))
+    metrics = db.Column(db.JSON)  # Store selected metrics
+    timeframe = db.Column(db.String(10))
+    last_modified = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('report_drafts', lazy=True))
+
+    @staticmethod
+    def get_or_create(user_id, name="Untitled Report"):
+        """Get existing draft or create new one"""
+        draft = ReportDraft.query.filter_by(user_id=user_id, name=name).first()
+        if not draft:
+            draft = ReportDraft(user_id=user_id, name=name)
+            db.session.add(draft)
+            db.session.commit()
+        return draft
 
 # Settings model event listeners
 @event.listens_for(Settings, 'after_update')

@@ -36,11 +36,17 @@
                             <td class="ps-3">{{ category.name }}</td>
                             <td class="d-none d-md-table-cell">{{ category.slug }}</td>
                             <td class="d-none d-sm-table-cell">{{ post_count }}</td>
-                            <td class="text-end">
-                                <a href="{{ url_for('admin.edit_category', id=category.id) }}" class="btn btn-sm btn-primary">Edit</a>
-                                <form action="{{ url_for('admin.delete_category', id=category.id) }}" method="POST" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                </form>
+                            <td class="text-end pe-3">
+                                <div class="btn-group">
+                                    <a href="{{ url_for('admin.edit_category', id=category.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil-square me-1"></i>Edit
+                                    </a>
+                                    <form action="{{ url_for('admin.delete_category', id=category.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
+                                            <i class="bi bi-trash me-1"></i>Delete
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}

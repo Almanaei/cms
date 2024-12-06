@@ -12,6 +12,7 @@
         <div class="col">
             <h2>Media Library</h2>
             <div class="dropzone" id="mediaDropzone">
+                <input type="file" id="fileInput" multiple style="display: none;">
                 <i class="bi bi-cloud-upload fs-1"></i>
                 <h3>Drop files here or click to upload</h3>
                 <p class="text-muted">Supported formats: Images, Documents, etc.</p>
@@ -67,6 +68,7 @@
     text-align: center;
     background: #f9f9f9;
     transition: all 0.3s ease;
+    cursor: pointer;
 }
 
 .dropzone.dragover {
@@ -135,6 +137,17 @@
 <script>
     // Dropzone functionality
     const dropzone = document.getElementById('mediaDropzone');
+    const fileInput = document.getElementById('fileInput');
+    
+    // Handle click on dropzone
+    dropzone.addEventListener('click', function() {
+        fileInput.click();
+    });
+    
+    // Handle file selection
+    fileInput.addEventListener('change', function() {
+        handleFiles(this.files);
+    });
     
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropzone.addEventListener(eventName, preventDefaults, false);
@@ -162,7 +175,6 @@
     }
 
     dropzone.addEventListener('drop', handleDrop, false);
-    dropzone.addEventListener('click', () => document.createElement('input'));
 
     function handleDrop(e) {
         const dt = e.dataTransfer;

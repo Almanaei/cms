@@ -23,8 +23,4 @@ Flask-Analytics==0.6.0
 Flask-Compress==1.13
 Flask-SeaSurf==1.1.1
 Flask-Talisman==1.0.0
-PyMySQL==1.1.0
-python-json-logger==2.0.7
-pyOpenSSL==23.2.0
-humanize==4.9.0
-python-magic==0.4.27
+mysqlclient==2.2.0
