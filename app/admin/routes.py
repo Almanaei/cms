@@ -598,20 +598,30 @@ def delete_user(id):
 @login_required
 @admin_required
 def user_activity_list():
-    page = request.args.get('page', 1, type=int)
-    activities = UserActivity.query.order_by(UserActivity.timestamp.desc()).paginate(
-        page=page, per_page=20, error_out=False)
-    return render_template('admin/user_activity.html', activities=activities)
+    try:
+        page = request.args.get('page', 1, type=int)
+        activities = UserActivity.query.order_by(UserActivity.timestamp.desc()).paginate(
+            page=page, per_page=20, error_out=False)
+        return render_template('admin/user_activity.html', activities=activities)
+    except Exception as e:
+        current_app.logger.error(f'Error loading user activity list: {str(e)}')
+        flash('An error occurred while loading the activity list. Please try again.', 'danger')
+        return redirect(url_for('admin.index'))
 
 @bp.route('/user-activity/<int:id>')
 @login_required
 @admin_required
 def user_activity_detail(id):
-    user = User.query.get_or_404(id)
-    page = request.args.get('page', 1, type=int)
-    activities = UserActivity.query.filter_by(user_id=id).order_by(
-        UserActivity.timestamp.desc()).paginate(page=page, per_page=20, error_out=False)
-    return render_template('admin/user_activity_detail.html', user=user, activities=activities)
+    try:
+        user = User.query.get_or_404(id)
+        page = request.args.get('page', 1, type=int)
+        activities = UserActivity.query.filter_by(user_id=id).order_by(
+            UserActivity.timestamp.desc()).paginate(page=page, per_page=20, error_out=False)
+        return render_template('admin/user_activity_detail.html', user=user, activities=activities)
+    except Exception as e:
+        current_app.logger.error(f'Error loading user activity detail for user {id}: {str(e)}')
+        flash('An error occurred while loading the activity details. Please try again.', 'danger')
+        return redirect(url_for('admin.user_activity_list'))
 
 @bp.route('/roles')
 @login_required
@@ -642,105 +652,146 @@ def comments():
 @login_required
 @admin_required
 def analytics():
-    from sqlalchemy import func
-    from datetime import datetime, timedelta
-    
-    # Get time ranges
-    now = datetime.utcnow()
-    last_30_days = now - timedelta(days=30)
-    last_60_days = now - timedelta(days=60)
-    
-    # Get total views and growth
-    current_views = PageView.query.filter(PageView.timestamp >= last_30_days).count()
-    previous_views = PageView.query.filter(
-        PageView.timestamp >= last_60_days,
-        PageView.timestamp < last_30_days
-    ).count()
-    view_growth = ((current_views - previous_views) / (previous_views or 1)) * 100
-
-    # Get active users and growth
-    current_active_users = User.query.filter(
-        User.last_seen >= last_30_days,
-        User.is_active == True
-    ).count()
-    previous_active_users = User.query.filter(
-        User.last_seen >= last_60_days,
-        User.last_seen < last_30_days,
-        User.is_active == True
-    ).count()
-    user_growth = ((current_active_users - previous_active_users) / (previous_active_users or 1)) * 100
-
-    # Get total content and growth
-    current_content = Post.query.filter(
-        Post.created_at >= last_30_days,
-        Post.published == True
-    ).count()
-    previous_content = Post.query.filter(
-        Post.created_at >= last_60_days,
-        Post.created_at < last_30_days,
-        Post.published == True
-    ).count()
-    content_growth = ((current_content - previous_content) / (previous_content or 1)) * 100
-
-    # Get engagement metrics
-    current_engagement = Comment.query.filter(
-        Comment.created_at >= last_30_days
-    ).count()
-    previous_engagement = Comment.query.filter(
-        Comment.created_at >= last_60_days,
-        Comment.created_at < last_30_days
-    ).count()
-    engagement_growth = ((current_engagement - previous_engagement) / (previous_engagement or 1)) * 100
-    
-    # Calculate engagement rate
-    total_posts = Post.query.filter(Post.published == True).count()
-    engagement_rate = (current_engagement / (total_posts or 1)) * 100
-
-    # Get top posts by views
-    top_posts = db.session.query(
-        Post,
-        func.count(PageView.id).label('views')
-    ).join(
-        PageView, PageView.path.like(func.concat('/post/%', Post.slug))
-    ).filter(
-        Post.published == True,
-        PageView.timestamp >= last_30_days
-    ).group_by(
-        Post.id
-    ).order_by(
-        func.count(PageView.id).desc()
-    ).limit(5).all()
-
-    # Get traffic data for chart
-    traffic_data = []
-    for i in range(30, -1, -1):
-        date = now - timedelta(days=i)
-        views = PageView.query.filter(
-            PageView.timestamp >= date.replace(hour=0, minute=0, second=0),
-            PageView.timestamp < (date + timedelta(days=1)).replace(hour=0, minute=0, second=0)
+    try:
+        from sqlalchemy import func
+        from datetime import datetime, timedelta
+        
+        # Get time ranges
+        now = datetime.utcnow()
+        last_30_days = now - timedelta(days=30)
+        last_60_days = now - timedelta(days=60)
+        
+        # Get total views and growth
+        current_views = PageView.query.filter(PageView.timestamp >= last_30_days).count()
+        previous_views = PageView.query.filter(
+            PageView.timestamp >= last_60_days,
+            PageView.timestamp < last_30_days
         ).count()
-        traffic_data.append({
-            'date': date.strftime('%Y-%m-%d'),
-            'views': views
-        })
+        view_growth = ((current_views - previous_views) / (previous_views or 1)) * 100
 
-    # Get recent user activity
-    recent_activities = UserActivity.query.order_by(
-        UserActivity.timestamp.desc()
-    ).limit(5).all()
+        # Get active users and growth
+        current_active_users = User.query.filter(
+            User.last_seen >= last_30_days,
+            User.is_active == True
+        ).count()
+        previous_active_users = User.query.filter(
+            User.last_seen >= last_60_days,
+            User.last_seen < last_30_days,
+            User.is_active == True
+        ).count()
+        user_growth = ((current_active_users - previous_active_users) / (previous_active_users or 1)) * 100
 
-    return render_template('admin/analytics.html',
-                         total_views=current_views,
-                         view_growth=round(view_growth, 1),
-                         active_users=current_active_users,
-                         user_growth=round(user_growth, 1),
-                         total_content=total_posts,
-                         content_growth=round(content_growth, 1),
-                         engagement_rate=round(engagement_rate, 1),
-                         engagement_growth=round(engagement_growth, 1),
-                         recent_activities=recent_activities,
-                         top_posts=top_posts,
-                         traffic_data=traffic_data)
+        # Get total content and growth
+        current_content = Post.query.filter(
+            Post.created_at >= last_30_days,
+            Post.published == True
+        ).count()
+        previous_content = Post.query.filter(
+            Post.created_at >= last_60_days,
+            Post.created_at < last_30_days,
+            Post.published == True
+        ).count()
+        content_growth = ((current_content - previous_content) / (previous_content or 1)) * 100
+
+        # Get engagement metrics
+        current_engagement = Comment.query.filter(
+            Comment.created_at >= last_30_days
+        ).count()
+        previous_engagement = Comment.query.filter(
+            Comment.created_at >= last_60_days,
+            Comment.created_at < last_30_days
+        ).count()
+        engagement_growth = ((current_engagement - previous_engagement) / (previous_engagement or 1)) * 100
+        
+        # Calculate engagement rate
+        total_posts = Post.query.filter(Post.published == True).count()
+        engagement_rate = (current_engagement / (total_posts or 1)) * 100
+
+        # Get top posts by views
+        try:
+            top_posts = db.session.query(
+                Post,
+                func.count(PageView.id).label('views')
+            ).join(
+                PageView, PageView.path.like(func.concat('/post/%', Post.slug))
+            ).filter(
+                Post.published == True,
+                PageView.timestamp >= last_30_days
+            ).group_by(
+                Post.id
+            ).order_by(
+                func.count(PageView.id).desc()
+            ).limit(5).all()
+        except Exception as e:
+            current_app.logger.error(f'Error getting top posts: {str(e)}')
+            top_posts = []
+
+        # Get top countries
+        try:
+            top_countries = db.session.query(
+                PageView.country,
+                func.count(PageView.id).label('views')
+            ).filter(
+                PageView.timestamp >= last_30_days,
+                PageView.country.isnot(None)
+            ).group_by(
+                PageView.country
+            ).order_by(
+                func.count(PageView.id).desc()
+            ).limit(5).all()
+        except Exception as e:
+            current_app.logger.error(f'Error getting top countries: {str(e)}')
+            top_countries = []
+
+        # Get device breakdown
+        try:
+            devices = db.session.query(
+                PageView.device_type,
+                func.count(PageView.id).label('count')
+            ).filter(
+                PageView.timestamp >= last_30_days,
+                PageView.device_type.isnot(None)
+            ).group_by(
+                PageView.device_type
+            ).all()
+        except Exception as e:
+            current_app.logger.error(f'Error getting device breakdown: {str(e)}')
+            devices = []
+
+        # Get browser breakdown
+        try:
+            browsers = db.session.query(
+                PageView.browser,
+                func.count(PageView.id).label('count')
+            ).filter(
+                PageView.timestamp >= last_30_days,
+                PageView.browser.isnot(None)
+            ).group_by(
+                PageView.browser
+            ).all()
+        except Exception as e:
+            current_app.logger.error(f'Error getting browser breakdown: {str(e)}')
+            browsers = []
+
+        return render_template('admin/analytics.html',
+            current_views=current_views,
+            view_growth=view_growth,
+            current_active_users=current_active_users,
+            user_growth=user_growth,
+            current_content=current_content,
+            content_growth=content_growth,
+            current_engagement=current_engagement,
+            engagement_growth=engagement_growth,
+            engagement_rate=engagement_rate,
+            top_posts=top_posts,
+            top_countries=top_countries,
+            devices=devices,
+            browsers=browsers
+        )
+    except Exception as e:
+        current_app.logger.error(f'Error loading analytics: {str(e)}')
+        flash('An error occurred while loading analytics data. Please try again.', 'danger')
+        return redirect(url_for('admin.index'))
 
 @bp.route('/settings', methods=['GET', 'POST'])
 @login_required
