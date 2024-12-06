@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, SelectField, BooleanField, DateTimeField, FileField, PasswordField
-from wtforms.validators import DataRequired, Length, Optional, Email
-from flask_wtf.file import FileAllowed
+from wtforms.validators import DataRequired, Length, Optional, Email, EqualTo
+from flask_wtf.file import FileField, FileAllowed
 
 class PostForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired(), Length(max=200)])
@@ -25,5 +25,7 @@ class UserForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=64)])
     email = StringField('Email', validators=[DataRequired(), Email(), Length(max=120)])
     password = PasswordField('Password', validators=[Optional(), Length(min=6)])
+    confirm_password = PasswordField('Confirm Password', 
+        validators=[Optional(), EqualTo('password', message='Passwords must match')])
     role_id = SelectField('Role', coerce=int, validators=[DataRequired()])
     is_active = BooleanField('Active')
