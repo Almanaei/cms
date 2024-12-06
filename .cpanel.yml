@@ -3,5 +3,5 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/gdcdksdd/cms/
     - /bin/cp -R * $DEPLOYPATH
-    - /bin/cp .env.production.example $DEPLOYPATH/.env
+    - /bin/cp .env.production $DEPLOYPATH/.env
     - /bin/cp requirements.cpanel.txt $DEPLOYPATH/requirements.txt
