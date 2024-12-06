@@ -9,7 +9,7 @@ from functools import wraps
 from datetime import datetime
 import json
 import shutil
-from app.forms import PostForm  # Import PostForm
+from app.forms import PostForm, UserForm  # Import UserForm
 
 def admin_required(f):
     @wraps(f)
@@ -514,41 +514,32 @@ def create_user():
 def edit_user(id):
     try:
         user = User.query.get_or_404(id)
-        if request.method == 'POST':
+        form = UserForm()
+        
+        # Get all roles for the select field
+        roles = Role.query.all()
+        form.role_id.choices = [(role.id, role.name) for role in roles]
+        
+        if form.validate_on_submit():
             # Check if username already exists (excluding current user)
-            existing_user = User.query.filter(User.username == request.form['username'], User.id != id).first()
+            existing_user = User.query.filter(User.username == form.username.data, User.id != id).first()
             if existing_user:
                 flash('Username already exists', 'danger')
-                roles = Role.query.all()
-                return render_template('admin/edit_user.html', user=user, roles=roles)
+                return render_template('admin/edit_user.html', form=form, user=user)
             
             # Check if email already exists (excluding current user)
-            existing_email = User.query.filter(User.email == request.form['email'], User.id != id).first()
+            existing_email = User.query.filter(User.email == form.email.data, User.id != id).first()
             if existing_email:
                 flash('Email already exists', 'danger')
-                roles = Role.query.all()
-                return render_template('admin/edit_user.html', user=user, roles=roles)
+                return render_template('admin/edit_user.html', form=form, user=user)
             
-            # Validate that role exists
-            role_id = request.form.get('role_id')
-            if not role_id:
-                flash('Role is required', 'danger')
-                roles = Role.query.all()
-                return render_template('admin/edit_user.html', user=user, roles=roles)
+            user.username = form.username.data
+            user.email = form.email.data
+            user.role_id = form.role_id.data
+            user.is_active = form.is_active.data
             
-            role = Role.query.get(role_id)
-            if not role:
-                flash('Selected role does not exist', 'danger')
-                roles = Role.query.all()
-                return render_template('admin/edit_user.html', user=user, roles=roles)
-            
-            user.username = request.form['username']
-            user.email = request.form['email']
-            user.role_id = role_id
-            user.is_active = request.form.get('is_active') == 'on'
-            
-            if request.form.get('password'):
-                user.set_password(request.form['password'])
+            if form.password.data:
+                user.set_password(form.password.data)
                 user.must_change_password = True
                 user.password_changed_at = None
             
@@ -563,8 +554,14 @@ def edit_user(id):
             flash('User updated successfully!', 'success')
             return redirect(url_for('admin.users'))
         
-        roles = Role.query.all()
-        return render_template('admin/edit_user.html', user=user, roles=roles)
+        # For GET requests, populate form with user data
+        if request.method == 'GET':
+            form.username.data = user.username
+            form.email.data = user.email
+            form.role_id.data = user.role_id
+            form.is_active.data = user.is_active
+        
+        return render_template('admin/edit_user.html', form=form, user=user)
         
     except Exception as e:
         db.session.rollback()
