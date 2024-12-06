@@ -104,6 +104,121 @@ git checkout main
 git merge feature-name
 ```
 
+## Development to Production Workflow
+
+### Pre-Development Checklist
+Before starting any modifications, ensure:
+
+#### Local Environment
+- [ ] PostgreSQL database is running
+- [ ] `.env.development` has correct PostgreSQL credentials
+- [ ] All requirements are installed (`pip install -r requirements.txt`)
+- [ ] Local server runs without errors (`python run_local.py`)
+- [ ] Database is properly initialized (`python setup_local.py`)
+
+#### Production Environment
+- [ ] MySQL database is configured in cPanel
+- [ ] `.env.production` has correct MySQL credentials
+- [ ] `requirements.cpanel.txt` is up to date
+- [ ] Git repository is connected in cPanel
+
+### Development Workflow Steps
+
+1. **Local Development**
+   ```bash
+   # Start local server
+   python run_local.py
+   
+   # Access your site at
+   http://localhost:5000
+   ```
+   - Make your code changes
+   - Test thoroughly with PostgreSQL database
+   - Verify all features work as expected
+   - Test database operations
+
+2. **Code Review**
+   - Review all modified files
+   - Check for sensitive information
+   - Ensure no debug code remains
+   - Verify all new dependencies are added to both:
+     - `requirements.txt` (development)
+     - `requirements.cpanel.txt` (production)
+
+3. **Version Control**
+   ```bash
+   # Stage changes
+   git add .
+   
+   # Commit with descriptive message
+   git commit -m "Description of changes"
+   
+   # Push to repository
+   git push
+   ```
+
+4. **Production Deployment**
+   - Access cPanel
+   - Navigate to Git Version Control
+   - Click "Update from Remote"
+   - Go to Python App interface
+   - Click "Restart"
+
+5. **Production Verification**
+   - Visit your production website
+   - Test all modified features
+   - Check database operations
+   - Monitor error logs
+   - Verify file uploads (if applicable)
+
+### Rollback Plan
+If issues occur in production:
+
+1. **Immediate Actions**
+   - Check cPanel error logs
+   - Verify database connectivity
+   - Review recent changes
+
+2. **If Problems Persist**
+   ```bash
+   # Locally, revert to last working commit
+   git log  # Find last working commit hash
+   git revert [commit-hash]
+   git push
+   ```
+
+3. **In cPanel**
+   - Update from Remote again
+   - Restart Python application
+   - Verify site is working
+
+### Best Practices
+1. **Always Work Locally First**
+   - Never modify production directly
+   - Test thoroughly in development
+   - Use test data, not production data
+
+2. **Database Changes**
+   - Backup production database before updates
+   - Test migrations on both PostgreSQL and MySQL
+   - Document any database schema changes
+
+3. **Version Control**
+   - Make frequent, small commits
+   - Write clear commit messages
+   - Keep feature changes in separate branches
+
+4. **Security**
+   - Never commit `.env` files
+   - Keep production credentials secure
+   - Regularly update dependencies
+   - Monitor error logs
+
+5. **Documentation**
+   - Update README.md for new features
+   - Document API changes
+   - Keep deployment steps updated
+
 ## Production Environment (cPanel)
 
 ### 1. Deployment Files
