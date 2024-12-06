@@ -518,28 +518,14 @@ def create_user():
 @login_required
 @permission_required(Role.MANAGE_USERS)
 def edit_user(id):
-    try:
-        user = User.query.get_or_404(id)
-        form = UserForm()
-        
-        # Get all roles for the select field
-        roles = Role.query.all()
-        form.role_id.choices = [(role.id, role.name) for role in roles]
-        
-        if form.validate_on_submit():
-            # Check if username already exists (excluding current user)
-            existing_user = User.query.filter(User.username == form.username.data, User.id != id).first()
-            if existing_user:
-                flash('Username already exists', 'danger')
-                return render_template('admin/edit_user.html', form=form, user=user)
-            
-            # Check if email already exists (excluding current user)
-            existing_email = User.query.filter(User.email == form.email.data, User.id != id).first()
-            if existing_email:
-                flash('Email already exists', 'danger')
-                return render_template('admin/edit_user.html', form=form, user=user)
-            
-            # Track changes for activity log
+    user = User.query.get_or_404(id)
+    form = UserForm(obj=user)
+    roles = Role.query.all()
+    form.role_id.choices = [(role.id, role.name) for role in roles]
+    
+    if form.validate_on_submit():
+        try:
+            # Track changes for activity logging
             changes = {}
             if user.username != form.username.data:
                 changes['username'] = {'old': user.username, 'new': form.username.data}
@@ -551,10 +537,7 @@ def edit_user(id):
                 changes['role'] = {'old': old_role.name if old_role else None, 'new': new_role.name if new_role else None}
             if user.is_active != form.is_active.data:
                 changes['is_active'] = {'old': user.is_active, 'new': form.is_active.data}
-            if form.password.data:
-                changes['password'] = {'changed': True}
             
-            # Update user data
             user.username = form.username.data
             user.email = form.email.data
             user.role_id = form.role_id.data
@@ -562,49 +545,39 @@ def edit_user(id):
             
             if form.password.data:
                 user.set_password(form.password.data)
-                user.must_change_password = True
-                user.password_changed_at = None
+                changes['password'] = {'changed': True}
             
             db.session.commit()
             
-            # Log the activity with detailed changes
+            # Log the activity
             log_activity(
                 user_id=current_user.id,
                 activity_type='edit_user',
                 activity_data={
-                    'target_user_id': user.id,
-                    'target_username': user.username,
+                    'user_id': user.id,
                     'changes': changes
                 }
             )
             
             flash('User updated successfully!', 'success')
             return redirect(url_for('admin.users'))
-        
-        # For GET requests, populate form with user data
-        if request.method == 'GET':
-            form.username.data = user.username
-            form.email.data = user.email
-            form.role_id.data = user.role_id
-            form.is_active.data = user.is_active
-        
-        return render_template('admin/edit_user.html', form=form, user=user)
-        
-    except Exception as e:
-        db.session.rollback()
-        # Log the failed attempt
-        log_activity(
-            user_id=current_user.id,
-            activity_type='edit_user',
-            activity_data={
-                'target_user_id': id,
-                'error': str(e)
-            },
-            success=False
-        )
-        current_app.logger.error(f'Error editing user: {str(e)}')
-        flash('An error occurred while editing the user. Please try again.', 'danger')
-        return redirect(url_for('admin.users'))
+            
+        except Exception as e:
+            db.session.rollback()
+            # Log the failed attempt
+            log_activity(
+                user_id=current_user.id,
+                activity_type='edit_user',
+                activity_data={
+                    'target_user_id': id,
+                    'error': str(e)
+                },
+                success=False
+            )
+            current_app.logger.error(f'Error editing user: {str(e)}')
+            flash('An error occurred while updating the user. Please try again.', 'danger')
+            
+    return render_template('admin/edit_user.html', form=form, user=user)
 
 @bp.route('/user/<int:id>/delete', methods=['POST'])
 @login_required
