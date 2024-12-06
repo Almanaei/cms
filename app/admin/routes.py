@@ -452,26 +452,58 @@ def users():
 @permission_required(Role.MANAGE_USERS)
 def create_user():
     if request.method == 'POST':
-        user = User(
-            username=request.form['username'],
-            email=request.form['email'],
-            role_id=request.form.get('role_id'),
-            is_active=request.form.get('is_active') == 'on',
-            must_change_password=True
-        )
-        user.set_password(request.form['password'])
-        
-        db.session.add(user)
-        db.session.commit()
-        
-        current_user.log_activity(
-            'created_user',
-            f'Created user: {user.username}',
-            request.remote_addr
-        )
-        
-        flash('User created successfully!', 'success')
-        return redirect(url_for('admin.users'))
+        try:
+            # Validate that role exists
+            role_id = request.form.get('role_id')
+            if not role_id:
+                flash('Role is required', 'danger')
+                roles = Role.query.all()
+                return render_template('admin/create_user.html', roles=roles)
+            
+            role = Role.query.get(role_id)
+            if not role:
+                flash('Selected role does not exist', 'danger')
+                roles = Role.query.all()
+                return render_template('admin/create_user.html', roles=roles)
+            
+            # Check if username or email already exists
+            if User.query.filter_by(username=request.form['username']).first():
+                flash('Username already exists', 'danger')
+                roles = Role.query.all()
+                return render_template('admin/create_user.html', roles=roles)
+            
+            if User.query.filter_by(email=request.form['email']).first():
+                flash('Email already exists', 'danger')
+                roles = Role.query.all()
+                return render_template('admin/create_user.html', roles=roles)
+            
+            user = User(
+                username=request.form['username'],
+                email=request.form['email'],
+                role_id=role_id,
+                is_active=request.form.get('is_active') == 'on',
+                must_change_password=True
+            )
+            user.set_password(request.form['password'])
+            
+            db.session.add(user)
+            db.session.commit()
+            
+            current_user.log_activity(
+                'created_user',
+                f'Created user: {user.username}',
+                request.remote_addr
+            )
+            
+            flash('User created successfully!', 'success')
+            return redirect(url_for('admin.users'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Error creating user: {str(e)}')
+            flash('An error occurred while creating the user. Please try again.', 'danger')
+            roles = Role.query.all()
+            return render_template('admin/create_user.html', roles=roles)
     
     roles = Role.query.all()
     return render_template('admin/create_user.html', roles=roles)
