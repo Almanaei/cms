@@ -24,3 +24,4 @@ Flask-Compress==1.13
 Flask-SeaSurf==1.1.1
 Flask-Talisman==1.0.0
 mysqlclient==2.2.0
+PyMySQL==1.1.0
