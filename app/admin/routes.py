@@ -1075,8 +1075,11 @@ def create_backup():
     
     try:
         # Ensure backup directory exists
-        if not os.path.exists(current_app.config['BACKUP_DIR']):
-            os.makedirs(current_app.config['BACKUP_DIR'])
+        backup_dir = current_app.config['BACKUP_DIR']
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir, exist_ok=True)
+            # Set directory permissions to 755
+            os.chmod(backup_dir, 0o755)
         
         # Create backup record
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
@@ -1095,49 +1098,23 @@ def create_backup():
             if not db_path.startswith('/'):  # Relative path
                 db_path = os.path.join(current_app.root_path, '..', db_path)
             
-            backup_path = os.path.join(current_app.config['BACKUP_DIR'], filename)
+            backup_path = os.path.join(backup_dir, filename)
             
-            # Ensure the source database exists
-            if not os.path.exists(db_path):
-                raise FileNotFoundError(f"Database file not found at {db_path}")
-            
-            # Copy the database file
+            # Create backup with proper permissions
             shutil.copy2(db_path, backup_path)
+            os.chmod(backup_path, 0o644)  # Set file permissions to 644
             
-            # Update backup record with file size
-            backup.status = 'completed'
-            backup.completed_at = datetime.utcnow()
-            backup.size = os.path.getsize(backup_path)
-            db.session.commit()
-            
-            # Clean up old backups if needed
-            cleanup_old_backups()
-            
-            return jsonify({
-                'status': 'success',
-                'message': 'Backup created successfully',
-                'backup': {
-                    'id': backup.id,
-                    'filename': backup.filename,
-                    'created_at': backup.created_at.isoformat(),
-                    'size': backup.size,
-                    'type': backup.type,
-                    'note': backup.note
-                }
-            })
+            flash('Backup created successfully.', 'success')
+            return jsonify({'status': 'success', 'message': 'Backup created successfully'})
             
         except Exception as e:
-            backup.status = 'failed'
-            backup.note = str(e)
+            db.session.delete(backup)
             db.session.commit()
-            raise
+            raise e
             
     except Exception as e:
-        current_app.logger.error(f'Error creating backup: {str(e)}', exc_info=True)
-        return jsonify({
-            'status': 'error',
-            'message': f'Failed to create backup: {str(e)}'
-        }), 500
+        current_app.logger.error(f'Backup creation failed: {str(e)}')
+        return jsonify({'status': 'error', 'message': f'Failed to create backup: {str(e)}'}), 500
 
 @bp.route('/backups/<int:id>/download')
 @login_required

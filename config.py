@@ -16,7 +16,7 @@ class Config:
     
     # File Upload Config
     UPLOAD_FOLDER = os.path.join(basedir, 'app', 'static', 'uploads')
-    BACKUP_DIR = os.path.join(basedir, 'backups')
+    BACKUP_DIR = os.path.join(basedir, 'app', 'static', 'backups')  # Changed to be under static for web access
     BACKUP_FILE_PREFIX = 'backup_'
     MAX_BACKUPS = 10  # Maximum number of backups to keep
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
