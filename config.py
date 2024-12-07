@@ -22,6 +22,12 @@ class Config:
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
     
+    # Database Config for cPanel
+    if os.environ.get('CPANEL_ENV') == 'true':
+        SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI') or \
+            'sqlite:///' + os.path.join('/home', os.environ.get('USER', ''), 'app.db')
+        BACKUP_DIR = os.path.join('/home', os.environ.get('USER', ''), 'public_html', 'static', 'backups')
+    
     # AWS S3 Config (for production file storage)
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')

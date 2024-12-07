@@ -1072,6 +1072,7 @@ def create_backup():
     """Create a new backup."""
     import shutil
     from datetime import datetime
+    import os
     
     try:
         # Ensure backup directory exists
@@ -1087,16 +1088,20 @@ def create_backup():
         backup = Backup(
             filename=filename,
             type='manual',
+            status='pending',
             note=request.form.get('note', '')
         )
         db.session.add(backup)
         db.session.commit()
         
         try:
-            # Get the database file path
-            db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
-            if not db_path.startswith('/'):  # Relative path
-                db_path = os.path.join(current_app.root_path, '..', db_path)
+            # Get the database file path based on environment
+            if os.environ.get('CPANEL_ENV') == 'true':
+                db_path = os.path.join('/home', os.environ.get('USER', ''), 'app.db')
+            else:
+                db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+                if not db_path.startswith('/'):  # Relative path
+                    db_path = os.path.join(current_app.root_path, '..', db_path)
             
             backup_path = os.path.join(backup_dir, filename)
             
@@ -1104,39 +1109,59 @@ def create_backup():
             shutil.copy2(db_path, backup_path)
             os.chmod(backup_path, 0o644)  # Set file permissions to 644
             
-            flash('Backup created successfully.', 'success')
-            return jsonify({'status': 'success', 'message': 'Backup created successfully'})
+            # Update backup status
+            backup.status = 'completed'
+            backup.size = os.path.getsize(backup_path)
+            backup.completed_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Backup created successfully',
+                'backup': {
+                    'id': backup.id,
+                    'filename': backup.filename,
+                    'created_at': backup.created_at.isoformat(),
+                    'size': backup.size
+                }
+            })
             
         except Exception as e:
-            db.session.delete(backup)
+            current_app.logger.error(f'Error during backup creation: {str(e)}')
+            backup.status = 'failed'
+            backup.note = str(e)
             db.session.commit()
-            raise e
+            raise
             
     except Exception as e:
         current_app.logger.error(f'Backup creation failed: {str(e)}')
-        return jsonify({'status': 'error', 'message': f'Failed to create backup: {str(e)}'}), 500
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to create backup: {str(e)}'
+        }), 500
 
 @bp.route('/backups/<int:id>/download')
 @login_required
 @admin_required
 def download_backup(id):
     """Download a backup file."""
-    backup = Backup.query.get_or_404(id)
-    
-    if not os.path.exists(backup.filepath):
-        flash('Backup file not found.', 'error')
-        return redirect(url_for('admin.backups'))
-    
     try:
+        backup = Backup.query.get_or_404(id)
+        backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
+        
+        if not os.path.exists(backup_path):
+            flash('Backup file not found.', 'error')
+            return redirect(url_for('admin.backups'))
+        
         return send_file(
-            backup.filepath,
+            backup_path,
             as_attachment=True,
-            download_name=backup.filename,
-            mimetype='application/octet-stream'
+            download_name=backup.filename
         )
+        
     except Exception as e:
-        current_app.logger.error(f'Error downloading backup: {str(e)}', exc_info=True)
-        flash('Error downloading backup file.', 'error')
+        current_app.logger.error(f'Error downloading backup: {str(e)}')
+        flash(f'Error downloading backup: {str(e)}', 'error')
         return redirect(url_for('admin.backups'))
 
 @bp.route('/backups/<int:id>/delete', methods=['POST'])
@@ -1144,14 +1169,15 @@ def download_backup(id):
 @admin_required
 def delete_backup(id):
     """Delete a backup."""
-    backup = Backup.query.get_or_404(id)
-    
     try:
-        # Delete the file
-        if os.path.exists(backup.filepath):
-            os.remove(backup.filepath)
+        backup = Backup.query.get_or_404(id)
+        backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
         
-        # Delete the record
+        # Delete file if exists
+        if os.path.exists(backup_path):
+            os.remove(backup_path)
+        
+        # Delete database record
         db.session.delete(backup)
         db.session.commit()
         
@@ -1161,7 +1187,7 @@ def delete_backup(id):
         })
         
     except Exception as e:
-        current_app.logger.error(f'Error deleting backup: {str(e)}', exc_info=True)
+        current_app.logger.error(f'Error deleting backup: {str(e)}')
         return jsonify({
             'status': 'error',
             'message': f'Failed to delete backup: {str(e)}'
@@ -1172,36 +1198,48 @@ def delete_backup(id):
 @admin_required
 def restore_backup(id):
     """Restore a backup."""
-    backup = Backup.query.get_or_404(id)
-    
-    if not os.path.exists(backup.filepath):
-        return jsonify({
-            'status': 'error',
-            'message': 'Backup file not found.'
-        }), 404
-    
     try:
-        # Get the database file path
-        db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
-        if not db_path.startswith('/'):  # Relative path
-            db_path = os.path.join(current_app.root_path, '..', db_path)
+        backup = Backup.query.get_or_404(id)
+        backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
         
-        # Create a backup of the current database before restoring
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-        pre_restore_backup = f"pre_restore_{timestamp}.db"
-        pre_restore_path = os.path.join(current_app.config['BACKUP_DIR'], pre_restore_backup)
-        shutil.copy2(db_path, pre_restore_path)
+        if not os.path.exists(backup_path):
+            raise FileNotFoundError('Backup file not found')
         
-        # Restore the backup
-        shutil.copy2(backup.filepath, db_path)
+        # Get the database path based on environment
+        if os.environ.get('CPANEL_ENV') == 'true':
+            db_path = os.path.join('/home', os.environ.get('USER', ''), 'app.db')
+        else:
+            db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+            if not db_path.startswith('/'):
+                db_path = os.path.join(current_app.root_path, '..', db_path)
         
-        return jsonify({
-            'status': 'success',
-            'message': 'Backup restored successfully'
-        })
+        # Create a temporary backup of current database
+        temp_backup = f"{db_path}.temp"
+        shutil.copy2(db_path, temp_backup)
         
+        try:
+            # Restore the backup
+            shutil.copy2(backup_path, db_path)
+            os.chmod(db_path, 0o644)  # Set proper permissions
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Backup restored successfully'
+            })
+            
+        except Exception as e:
+            # If restore fails, try to restore from temp backup
+            if os.path.exists(temp_backup):
+                shutil.copy2(temp_backup, db_path)
+            raise e
+            
+        finally:
+            # Clean up temp backup
+            if os.path.exists(temp_backup):
+                os.remove(temp_backup)
+            
     except Exception as e:
-        current_app.logger.error(f'Error restoring backup: {str(e)}', exc_info=True)
+        current_app.logger.error(f'Error restoring backup: {str(e)}')
         return jsonify({
             'status': 'error',
             'message': f'Failed to restore backup: {str(e)}'
@@ -1228,7 +1266,7 @@ def update_backup_schedule():
         })
         
     except Exception as e:
-        current_app.logger.error(f'Error updating backup schedule: {str(e)}', exc_info=True)
+        current_app.logger.error(f'Error updating backup schedule: {str(e)}')
         return jsonify({
             'status': 'error',
             'message': f'Failed to update backup schedule: {str(e)}'

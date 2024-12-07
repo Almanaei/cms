@@ -410,13 +410,13 @@ class Backup(db.Model):
     """Model for database backups."""
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(255), nullable=False)
-    size = db.Column(db.Integer)  # Size in bytes
-    type = db.Column(db.String(50), default='manual')  # manual, scheduled
-    status = db.Column(db.String(50), default='pending')  # pending, completed, failed
-    note = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
-
+    type = db.Column(db.String(50))  # manual, scheduled
+    status = db.Column(db.String(50), default='pending')  # pending, completed, failed
+    size = db.Column(db.Integer)  # Size in bytes
+    note = db.Column(db.Text)
+    
     @property
     def filepath(self):
         """Get the full path to the backup file."""
