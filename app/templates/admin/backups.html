@@ -64,15 +64,15 @@
                     <h5 class="mb-0">Backup #{{ backup.id }}</h5>
                     <div class="btn-group">
                         <button type="button" class="btn btn-sm btn-outline-primary" 
-                                onclick="downloadBackup('{{ backup.id }}')">
+                                onclick="downloadBackup({{ backup.id }})">
                             Download
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-success" 
-                                onclick="restoreBackup('{{ backup.id }}')">
+                                onclick="restoreBackup({{ backup.id }})">
                             Restore
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-danger" 
-                                onclick="deleteBackup('{{ backup.id }}')">
+                                onclick="deleteBackup({{ backup.id }})">
                             Delete
                         </button>
                     </div>
@@ -80,8 +80,9 @@
                 <div class="backup-body">
                     <div class="backup-meta mb-2">
                         <div>Created: {{ backup.created_at|datetime('%B %d, %Y at %I:%M %p') }}</div>
-                        <div>Size: {{ backup.size|filesizeformat }}</div>
+                        <div>Size: {{ backup.size|filesizeformat if backup.size else 'Unknown' }}</div>
                         <div>Type: {{ backup.type }}</div>
+                        <div>Status: {{ backup.status }}</div>
                     </div>
                     {% if backup.note %}
                     <div class="backup-note">
@@ -105,46 +106,46 @@
                 <div class="modal-body">
                     <form id="scheduleForm">
                         <div class="mb-3">
-                            <label class="form-label">Backup Frequency</label>
-                            <select class="form-select" name="frequency" id="backupFrequency">
+                            <label class="form-label">Frequency</label>
+                            <select name="frequency" class="form-select">
                                 <option value="daily" {% if schedule.frequency == 'daily' %}selected{% endif %}>Daily</option>
                                 <option value="weekly" {% if schedule.frequency == 'weekly' %}selected{% endif %}>Weekly</option>
                                 <option value="monthly" {% if schedule.frequency == 'monthly' %}selected{% endif %}>Monthly</option>
                             </select>
                         </div>
-
                         <div class="mb-3">
-                            <label class="form-label">Time</label>
-                            <input type="time" class="form-control" name="time" id="backupTime" 
-                                   value="{{ schedule.time or '00:00' }}">
+                            <label class="form-label">Time (24-hour format)</label>
+                            <input type="time" name="time" class="form-control" value="{{ schedule.time }}" required>
                         </div>
-
                         <div class="mb-3">
-                            <label class="form-label">Retention Period (days)</label>
-                            <input type="number" class="form-control" name="retention" id="retentionDays" 
-                                   value="{{ schedule.retention or 30 }}" min="1" max="365">
+                            <label class="form-label">Retention (days)</label>
+                            <input type="number" name="retention" class="form-control" value="{{ schedule.retention }}" min="1" required>
                         </div>
-
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="notifyOnFailure" 
-                                       name="notify_on_failure" {% if schedule.notify_on_failure %}checked{% endif %}>
-                                <label class="form-check-label" for="notifyOnFailure">
-                                    Notify on backup failure
-                                </label>
-                            </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" name="notify_on_failure" class="form-check-input" 
+                                   id="notifyCheck" {% if schedule.notify_on_failure %}checked{% endif %}>
+                            <label class="form-check-label" for="notifyCheck">
+                                Notify on failure
+                            </label>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" name="enabled" class="form-check-input" 
+                                   id="enabledCheck" {% if schedule.enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="enabledCheck">
+                                Enable scheduled backups
+                            </label>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="saveSchedule()">Save Schedule</button>
+                    <button type="button" class="btn btn-primary" onclick="saveSchedule()">Save Changes</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Restore Confirmation Modal -->
+    <!-- Restore Modal -->
     <div class="modal fade" id="restoreModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -195,44 +196,8 @@ async function createBackup() {
         
         progressBar.style.width = '100%';
         
-        // Add new backup to the list
-        const backupsList = document.querySelector('.row');
-        const backupHtml = `
-            <div class="col-md-6">
-                <div class="card backup-card" data-backup-id="${data.backup.id}">
-                    <div class="backup-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Backup #${data.backup.id}</h5>
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-sm btn-outline-primary" 
-                                    onclick="downloadBackup('${data.backup.id}')">
-                                Download
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-danger" 
-                                    onclick="deleteBackup('${data.backup.id}')">
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                    <div class="backup-body">
-                        <div class="backup-meta mb-2">
-                            <div>Created: ${new Date(data.backup.created_at).toLocaleString()}</div>
-                            <div>Size: ${formatBytes(data.backup.size)}</div>
-                            <div>Type: manual</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        backupsList.insertAdjacentHTML('afterbegin', backupHtml);
-        
-        // Show success message
-        const alertHtml = `
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                ${data.message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        `;
-        document.querySelector('.container').insertAdjacentHTML('afterbegin', alertHtml);
+        // Reload the page to show the new backup
+        window.location.reload();
         
     } catch (error) {
         console.error('Error:', error);
@@ -251,7 +216,7 @@ async function createBackup() {
     }
 }
 
-async function downloadBackup(backupId) {
+function downloadBackup(backupId) {
     window.location.href = "{{ url_for('admin.download_backup', id=0) }}".replace('0', backupId);
 }
 
@@ -276,7 +241,7 @@ async function deleteBackup(backupId) {
         }
         
         // Remove the backup card from the UI
-        const backupCard = document.querySelector(`[data-backup-id="${backupId}"]`);
+        const backupCard = document.querySelector(`[data-backup-id="${backupId}"]`).closest('.col-md-6');
         if (backupCard) {
             backupCard.remove();
         }
@@ -302,17 +267,57 @@ async function deleteBackup(backupId) {
     }
 }
 
-function formatBytes(bytes, decimals = 2) {
-    if (bytes === 0) return '0 Bytes';
-    
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+let restoreBackupId = null;
+
+function restoreBackup(backupId) {
+    restoreBackupId = backupId;
+    const modal = new bootstrap.Modal(document.getElementById('restoreModal'));
+    modal.show();
 }
+
+document.getElementById('confirmRestore').addEventListener('click', async function() {
+    if (!restoreBackupId) return;
+    
+    const modal = bootstrap.Modal.getInstance(document.getElementById('restoreModal'));
+    modal.hide();
+    
+    try {
+        const response = await fetch(`{{ url_for('admin.restore_backup', id=0) }}`.replace('0', restoreBackupId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': "{{ csrf_token() }}"
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to restore backup');
+        }
+        
+        // Show success message
+        const alertHtml = `
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        document.querySelector('.container').insertAdjacentHTML('afterbegin', alertHtml);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        const alertHtml = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                ${error.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        document.querySelector('.container').insertAdjacentHTML('afterbegin', alertHtml);
+    } finally {
+        restoreBackupId = null;
+    }
+});
 
 async function saveSchedule() {
     const form = document.getElementById('scheduleForm');
@@ -356,6 +361,18 @@ async function saveSchedule() {
         `;
         document.querySelector('.container').insertAdjacentHTML('afterbegin', alertHtml);
     }
+}
+
+function formatBytes(bytes, decimals = 2) {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 </script>
 {% endblock %}

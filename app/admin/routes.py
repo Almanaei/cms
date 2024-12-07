@@ -1190,42 +1190,72 @@ def delete_backup(id):
             'message': f'Failed to delete backup: {str(e)}'
         }), 500
 
-def cleanup_old_backups():
-    """Delete old backups if we exceed the maximum number."""
-    max_backups = current_app.config.get('MAX_BACKUPS', 10)
-    backups = Backup.query.order_by(Backup.created_at.desc()).all()
+@bp.route('/backups/<int:id>/restore', methods=['POST'])
+@login_required
+@admin_required
+def restore_backup(id):
+    """Restore a backup."""
+    backup = Backup.query.get_or_404(id)
     
-    if len(backups) > max_backups:
-        for backup in backups[max_backups:]:
-            try:
-                if os.path.exists(backup.filepath):
-                    os.remove(backup.filepath)
-                db.session.delete(backup)
-            except Exception as e:
-                current_app.logger.error(f'Error cleaning up backup {backup.id}: {str(e)}', exc_info=True)
+    if not os.path.exists(backup.filepath):
+        return jsonify({
+            'status': 'error',
+            'message': 'Backup file not found.'
+        }), 404
+    
+    try:
+        # Get the database file path
+        db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+        if not db_path.startswith('/'):  # Relative path
+            db_path = os.path.join(current_app.root_path, '..', db_path)
         
-        db.session.commit()
+        # Create a backup of the current database before restoring
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        pre_restore_backup = f"pre_restore_{timestamp}.db"
+        pre_restore_path = os.path.join(current_app.config['BACKUP_DIR'], pre_restore_backup)
+        shutil.copy2(db_path, pre_restore_path)
+        
+        # Restore the backup
+        shutil.copy2(backup.filepath, db_path)
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Backup restored successfully'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f'Error restoring backup: {str(e)}', exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to restore backup: {str(e)}'
+        }), 500
 
 @bp.route('/backups/schedule', methods=['POST'])
 @login_required
 @admin_required
 def update_backup_schedule():
     """Update backup schedule settings."""
-    from app.models import BackupSchedule
-    
-    schedule = BackupSchedule.get_schedule()
-    schedule.frequency = request.form.get('frequency', 'daily')
-    schedule.time = request.form.get('time', '00:00')
-    schedule.retention = int(request.form.get('retention', 30))
-    schedule.notify_on_failure = request.form.get('notify_on_failure') == 'true'
-    schedule.enabled = True
-    
-    db.session.commit()
-    
-    return jsonify({
-        'status': 'success',
-        'message': 'Backup schedule updated successfully'
-    })
+    try:
+        schedule = BackupSchedule.get_schedule()
+        schedule.frequency = request.form.get('frequency', 'daily')
+        schedule.time = request.form.get('time', '00:00')
+        schedule.retention = int(request.form.get('retention', 30))
+        schedule.notify_on_failure = bool(request.form.get('notify_on_failure', True))
+        schedule.enabled = bool(request.form.get('enabled', True))
+        
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Backup schedule updated successfully'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f'Error updating backup schedule: {str(e)}', exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to update backup schedule: {str(e)}'
+        }), 500
 
 @bp.route('/comments/bulk-action', methods=['POST'])
 @login_required
@@ -1318,3 +1348,19 @@ def upload_editor_image():
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
+def cleanup_old_backups():
+    """Delete old backups if we exceed the maximum number."""
+    max_backups = current_app.config.get('MAX_BACKUPS', 10)
+    backups = Backup.query.order_by(Backup.created_at.desc()).all()
+    
+    if len(backups) > max_backups:
+        for backup in backups[max_backups:]:
+            try:
+                if os.path.exists(backup.filepath):
+                    os.remove(backup.filepath)
+                db.session.delete(backup)
+            except Exception as e:
+                current_app.logger.error(f'Error cleaning up backup {backup.id}: {str(e)}', exc_info=True)
+        
+        db.session.commit()
