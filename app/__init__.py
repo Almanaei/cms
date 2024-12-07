@@ -30,20 +30,26 @@ def create_app(config_class=Config):
             os.makedirs(logs_dir, exist_ok=True)
             print(f"Created logs directory at: {logs_dir}", file=sys.stderr)
 
+        # Create log file immediately
+        log_file = os.path.join(logs_dir, 'error.log')
+        with open(log_file, 'a') as f:
+            f.write(f'Log file initialized at {datetime.utcnow()}\n')
+
         # Configure logging format
         formatter = logging.Formatter(
-            '%(asctime)s %(levelname)s: %(message)s\n'
+            '[%(asctime)s] %(levelname)s in %(module)s: %(message)s\n'
             'Path: %(pathname)s:%(lineno)d\n'
+            'Function: %(funcName)s\n'
             'Traceback:\n%(exc_info)s\n'
         )
         
         # File handler for error.log
-        log_file = os.path.join(logs_dir, 'error.log')
         file_handler = RotatingFileHandler(
             log_file,
             maxBytes=10240000,  # 10MB
             backupCount=10,
-            encoding='utf-8'
+            encoding='utf-8',
+            delay=False  # Create file immediately
         )
         file_handler.setFormatter(formatter)
         file_handler.setLevel(logging.ERROR)
@@ -56,17 +62,20 @@ def create_app(config_class=Config):
         # Configure the root logger
         root_logger = logging.getLogger()
         root_logger.setLevel(logging.ERROR)
+        for handler in root_logger.handlers[:]:  # Remove any existing handlers
+            root_logger.removeHandler(handler)
         root_logger.addHandler(file_handler)
         root_logger.addHandler(stream_handler)
         
-        # Add handlers to the app logger
+        # Configure Flask app logger
         app.logger.handlers = []  # Remove default handlers
         app.logger.addHandler(file_handler)
         app.logger.addHandler(stream_handler)
         app.logger.setLevel(logging.ERROR)
         
-        print(f"Logging configured. Log file: {log_file}", file=sys.stderr)
-        
+        # Log an initial message to verify logging is working
+        app.logger.error('Logging system initialized')
+
         # Register error handlers
         @app.errorhandler(Exception)
         def handle_exception(e):
