@@ -692,6 +692,19 @@ def analytics():
         from sqlalchemy import func
         from datetime import datetime, timedelta
         
+        # Initialize default values
+        metrics = {
+            'views': {'current': 0, 'growth': 0},
+            'visitors': {'current': 0, 'growth': 0},
+            'duration': {'current': 0, 'growth': 0},
+            'bounce_rate': {'current': 0, 'growth': 0}
+        }
+        content_perf = {'top_content': []}
+        top_posts = []
+        top_countries = []
+        devices = []
+        browsers = []
+        
         # Get time ranges
         now = datetime.utcnow()
         last_30_days = now - timedelta(days=30)
@@ -705,9 +718,9 @@ def analytics():
                 PageView.timestamp < last_30_days
             ).count()
             view_growth = ((current_views - previous_views) / (previous_views or 1)) * 100
+            metrics['views'] = {'current': current_views, 'growth': view_growth}
         except Exception as e:
             current_app.logger.error(f'Error calculating view metrics: {str(e)}', exc_info=True)
-            raise
 
         # Get active users and growth
         try:
@@ -721,9 +734,9 @@ def analytics():
                 User.is_active == True
             ).count()
             user_growth = ((current_active_users - previous_active_users) / (previous_active_users or 1)) * 100
+            metrics['visitors'] = {'current': current_active_users, 'growth': user_growth}
         except Exception as e:
             current_app.logger.error(f'Error calculating user metrics: {str(e)}', exc_info=True)
-            raise
 
         # Get total content and growth
         try:
@@ -739,7 +752,6 @@ def analytics():
             content_growth = ((current_content - previous_content) / (previous_content or 1)) * 100
         except Exception as e:
             current_app.logger.error(f'Error calculating content metrics: {str(e)}', exc_info=True)
-            raise
 
         # Get engagement metrics
         try:
@@ -757,11 +769,10 @@ def analytics():
             engagement_rate = (current_engagement / (total_posts or 1)) * 100
         except Exception as e:
             current_app.logger.error(f'Error calculating engagement metrics: {str(e)}', exc_info=True)
-            raise
 
         # Get top posts by views
         try:
-            top_posts = db.session.query(
+            top_posts_query = db.session.query(
                 Post,
                 func.count(PageView.id).label('views')
             ).join(
@@ -776,12 +787,10 @@ def analytics():
             ).limit(5).all()
             
             # Format top posts for content performance section
-            content_perf = {
-                'top_content': [(post.title, views) for post, views in top_posts]
-            }
+            top_posts = top_posts_query
+            content_perf['top_content'] = [(post.title, views) for post, views in top_posts_query]
         except Exception as e:
             current_app.logger.error(f'Error getting top posts: {str(e)}', exc_info=True)
-            content_perf = {'top_content': []}
 
         # Get top countries
         try:
@@ -798,7 +807,6 @@ def analytics():
             ).limit(5).all()
         except Exception as e:
             current_app.logger.error(f'Error getting top countries: {str(e)}', exc_info=True)
-            top_countries = []
 
         # Get device breakdown
         try:
@@ -813,7 +821,6 @@ def analytics():
             ).all()
         except Exception as e:
             current_app.logger.error(f'Error getting device breakdown: {str(e)}', exc_info=True)
-            devices = []
 
         # Get browser breakdown
         try:
@@ -828,30 +835,10 @@ def analytics():
             ).all()
         except Exception as e:
             current_app.logger.error(f'Error getting browser breakdown: {str(e)}', exc_info=True)
-            browsers = []
-
-        metrics = {
-            'views': {
-                'current': current_views,
-                'growth': view_growth
-            },
-            'visitors': {
-                'current': current_active_users,
-                'growth': user_growth
-            },
-            'duration': {
-                'current': 0,  # We'll implement session duration later
-                'growth': 0
-            },
-            'bounce_rate': {
-                'current': 0,  # We'll implement bounce rate later
-                'growth': 0
-            }
-        }
 
         return render_template('admin/analytics.html',
             metrics=metrics,
-            content_perf=content_perf,  # Added content_perf to template context
+            content_perf=content_perf,
             top_posts=top_posts,
             top_countries=top_countries,
             devices=devices,
@@ -860,8 +847,21 @@ def analytics():
     except Exception as e:
         current_app.logger.error(f'Error in analytics route: {str(e)}\nTraceback:', exc_info=True)
         db.session.rollback()  # Roll back any failed transactions
-        flash('An error occurred while loading analytics data. Please try again.', 'danger')
-        return redirect(url_for('admin.index'))
+        # Initialize empty data for the template
+        empty_data = {
+            'metrics': {
+                'views': {'current': 0, 'growth': 0},
+                'visitors': {'current': 0, 'growth': 0},
+                'duration': {'current': 0, 'growth': 0},
+                'bounce_rate': {'current': 0, 'growth': 0}
+            },
+            'content_perf': {'top_content': []},
+            'top_posts': [],
+            'top_countries': [],
+            'devices': [],
+            'browsers': []
+        }
+        return render_template('admin/analytics.html', **empty_data)
 
 @bp.route('/settings', methods=['GET', 'POST'])
 @login_required
