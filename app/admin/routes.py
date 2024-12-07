@@ -703,13 +703,12 @@ def analytics():
         content_perf = {'top_content': []}
         top_posts = []
         top_countries = []
-        devices = []
-        browsers = []
         
         # Initialize traffic data with default empty values
         traffic = {
             'peak_hours': {f"{hour:02d}:00": 0 for hour in range(24)},  # Initialize all 24 hours
-            'sources': {'Direct': 0, 'Search': 0, 'Social': 0, 'Referral': 0}  # Initialize common sources
+            'sources': {'Direct': 0, 'Search': 0, 'Social': 0, 'Referral': 0},  # Initialize common sources
+            'devices': {'Desktop': 0, 'Mobile': 0, 'Tablet': 0}  # Initialize device types
         }
         
         # Initialize behavior data with default empty values
@@ -720,6 +719,12 @@ def analytics():
                 'Home Page': 0,
                 'Comments': 0
             }
+        }
+        
+        # Initialize tech metrics with default empty values
+        tech_metrics = {
+            'browsers': {'Chrome': 0, 'Firefox': 0, 'Safari': 0, 'Edge': 0, 'Other': 0},
+            'operating_systems': {'Windows': 0, 'MacOS': 0, 'Linux': 0, 'iOS': 0, 'Android': 0, 'Other': 0}
         }
         
         # Get time ranges
@@ -760,6 +765,28 @@ def analytics():
                     behavior['events']['Category View'] += 1
                 elif view.url == '/':
                     behavior['events']['Home Page'] += 1
+                
+                # Track device types
+                if view.device_type:
+                    device_type = view.device_type.capitalize()
+                    if device_type in traffic['devices']:
+                        traffic['devices'][device_type] += 1
+                    
+                # Track browser usage
+                if view.browser:
+                    browser = view.browser.capitalize()
+                    if browser in tech_metrics['browsers']:
+                        tech_metrics['browsers'][browser] += 1
+                    else:
+                        tech_metrics['browsers']['Other'] += 1
+                        
+                # Track operating systems
+                if view.os:
+                    os_name = view.os.capitalize()
+                    if os_name in tech_metrics['operating_systems']:
+                        tech_metrics['operating_systems'][os_name] += 1
+                    else:
+                        tech_metrics['operating_systems']['Other'] += 1
                 
         except Exception as e:
             current_app.logger.error(f'Error calculating view metrics: {str(e)}', exc_info=True)
@@ -853,43 +880,14 @@ def analytics():
         except Exception as e:
             current_app.logger.error(f'Error getting top countries: {str(e)}', exc_info=True)
 
-        # Get device breakdown
-        try:
-            devices = db.session.query(
-                PageView.device_type,
-                func.count(PageView.id).label('count')
-            ).filter(
-                PageView.timestamp >= last_30_days,
-                PageView.device_type.isnot(None)
-            ).group_by(
-                PageView.device_type
-            ).all()
-        except Exception as e:
-            current_app.logger.error(f'Error getting device breakdown: {str(e)}', exc_info=True)
-
-        # Get browser breakdown
-        try:
-            browsers = db.session.query(
-                PageView.browser,
-                func.count(PageView.id).label('count')
-            ).filter(
-                PageView.timestamp >= last_30_days,
-                PageView.browser.isnot(None)
-            ).group_by(
-                PageView.browser
-            ).all()
-        except Exception as e:
-            current_app.logger.error(f'Error getting browser breakdown: {str(e)}', exc_info=True)
-
         return render_template('admin/analytics.html',
             metrics=metrics,
             content_perf=content_perf,
             top_posts=top_posts,
             top_countries=top_countries,
-            devices=devices,
-            browsers=browsers,
             traffic=traffic,
-            behavior=behavior
+            behavior=behavior,
+            tech_metrics=tech_metrics
         )
     except Exception as e:
         current_app.logger.error(f'Error in analytics route: {str(e)}\nTraceback:', exc_info=True)
@@ -905,11 +903,10 @@ def analytics():
             'content_perf': {'top_content': []},
             'top_posts': [],
             'top_countries': [],
-            'devices': [],
-            'browsers': [],
             'traffic': {
                 'peak_hours': {f"{hour:02d}:00": 0 for hour in range(24)},
-                'sources': {'Direct': 0, 'Search': 0, 'Social': 0, 'Referral': 0}
+                'sources': {'Direct': 0, 'Search': 0, 'Social': 0, 'Referral': 0},
+                'devices': {'Desktop': 0, 'Mobile': 0, 'Tablet': 0}
             },
             'behavior': {
                 'events': {
@@ -918,6 +915,10 @@ def analytics():
                     'Home Page': 0,
                     'Comments': 0
                 }
+            },
+            'tech_metrics': {
+                'browsers': {'Chrome': 0, 'Firefox': 0, 'Safari': 0, 'Edge': 0, 'Other': 0},
+                'operating_systems': {'Windows': 0, 'MacOS': 0, 'Linux': 0, 'iOS': 0, 'Android': 0, 'Other': 0}
             }
         }
         return render_template('admin/analytics.html', **empty_data)
