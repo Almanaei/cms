@@ -22,6 +22,11 @@ def create_app(config_class=Config):
     login_manager.init_app(app)
     csrf.init_app(app)
 
+    # Ensure backup directory exists
+    backup_dir = app.config.get('BACKUP_DIR')
+    if backup_dir and not os.path.exists(backup_dir):
+        os.makedirs(backup_dir)
+
     # Configure logging
     try:
         # Get the absolute path to the logs directory
