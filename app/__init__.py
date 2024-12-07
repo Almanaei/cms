@@ -4,6 +4,9 @@ from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from config import Config
 from datetime import datetime
+import logging
+from logging.handlers import RotatingFileHandler
+import os
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -16,6 +19,30 @@ def create_app(config_class=Config):
     db.init_app(app)
     login_manager.init_app(app)
     csrf.init_app(app)
+
+    # Ensure the logs directory exists
+    if not os.path.exists('logs'):
+        os.mkdir('logs')
+
+    # Configure logging
+    formatter = logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s '
+        '[in %(pathname)s:%(lineno)d]'
+    )
+    
+    # File handler for error.log
+    file_handler = RotatingFileHandler(
+        'logs/error.log', 
+        maxBytes=10240000,  # 10MB
+        backupCount=10
+    )
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(logging.ERROR)
+    
+    # Add handlers to the app logger
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.ERROR)
+    app.logger.info('CMS startup')
 
     # Add datetime to Jinja2 environment
     app.jinja_env.globals.update(now=datetime.utcnow)
