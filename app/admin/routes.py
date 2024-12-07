@@ -706,15 +706,20 @@ def analytics():
         devices = []
         browsers = []
         
-        # Initialize traffic data
+        # Initialize traffic data with default empty values
         traffic = {
-            'peak_hours': defaultdict(int),
-            'sources': defaultdict(int)
+            'peak_hours': {f"{hour:02d}:00": 0 for hour in range(24)},  # Initialize all 24 hours
+            'sources': {'Direct': 0, 'Search': 0, 'Social': 0, 'Referral': 0}  # Initialize common sources
         }
         
-        # Initialize behavior data
+        # Initialize behavior data with default empty values
         behavior = {
-            'events': defaultdict(int)
+            'events': {
+                'Post View': 0,
+                'Category View': 0,
+                'Home Page': 0,
+                'Comments': 0
+            }
         }
         
         # Get time ranges
@@ -732,15 +737,21 @@ def analytics():
             view_growth = ((current_views - previous_views) / (previous_views or 1)) * 100
             metrics['views'] = {'current': current_views, 'growth': view_growth}
             
-            # Calculate peak hours
+            # Calculate peak hours and traffic sources
             page_views = PageView.query.filter(PageView.timestamp >= last_30_days).all()
             for view in page_views:
                 hour = view.timestamp.strftime('%H:00')
                 traffic['peak_hours'][hour] += 1
                 
-                # Track traffic sources
-                source = view.referrer or 'Direct'
-                traffic['sources'][source] += 1
+                # Categorize traffic sources
+                if not view.referrer or view.referrer == '':
+                    traffic['sources']['Direct'] += 1
+                elif 'google' in view.referrer.lower() or 'bing' in view.referrer.lower():
+                    traffic['sources']['Search'] += 1
+                elif any(social in view.referrer.lower() for social in ['facebook', 'twitter', 'instagram', 'linkedin']):
+                    traffic['sources']['Social'] += 1
+                else:
+                    traffic['sources']['Referral'] += 1
                 
                 # Track user behavior
                 if view.url.startswith('/post/'):
@@ -870,11 +881,6 @@ def analytics():
         except Exception as e:
             current_app.logger.error(f'Error getting browser breakdown: {str(e)}', exc_info=True)
 
-        # Convert defaultdict to regular dict for JSON serialization
-        traffic['peak_hours'] = dict(traffic['peak_hours'])
-        traffic['sources'] = dict(traffic['sources'])
-        behavior['events'] = dict(behavior['events'])
-
         return render_template('admin/analytics.html',
             metrics=metrics,
             content_perf=content_perf,
@@ -902,11 +908,16 @@ def analytics():
             'devices': [],
             'browsers': [],
             'traffic': {
-                'peak_hours': {},
-                'sources': {}
+                'peak_hours': {f"{hour:02d}:00": 0 for hour in range(24)},
+                'sources': {'Direct': 0, 'Search': 0, 'Social': 0, 'Referral': 0}
             },
             'behavior': {
-                'events': {}
+                'events': {
+                    'Post View': 0,
+                    'Category View': 0,
+                    'Home Page': 0,
+                    'Comments': 0
+                }
             }
         }
         return render_template('admin/analytics.html', **empty_data)
