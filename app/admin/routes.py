@@ -698,50 +698,66 @@ def analytics():
         last_60_days = now - timedelta(days=60)
         
         # Get total views and growth
-        current_views = PageView.query.filter(PageView.timestamp >= last_30_days).count()
-        previous_views = PageView.query.filter(
-            PageView.timestamp >= last_60_days,
-            PageView.timestamp < last_30_days
-        ).count()
-        view_growth = ((current_views - previous_views) / (previous_views or 1)) * 100
+        try:
+            current_views = PageView.query.filter(PageView.timestamp >= last_30_days).count()
+            previous_views = PageView.query.filter(
+                PageView.timestamp >= last_60_days,
+                PageView.timestamp < last_30_days
+            ).count()
+            view_growth = ((current_views - previous_views) / (previous_views or 1)) * 100
+        except Exception as e:
+            current_app.logger.error(f'Error calculating view metrics: {str(e)}', exc_info=True)
+            raise
 
         # Get active users and growth
-        current_active_users = User.query.filter(
-            User.last_seen >= last_30_days,
-            User.is_active == True
-        ).count()
-        previous_active_users = User.query.filter(
-            User.last_seen >= last_60_days,
-            User.last_seen < last_30_days,
-            User.is_active == True
-        ).count()
-        user_growth = ((current_active_users - previous_active_users) / (previous_active_users or 1)) * 100
+        try:
+            current_active_users = User.query.filter(
+                User.last_seen >= last_30_days,
+                User.is_active == True
+            ).count()
+            previous_active_users = User.query.filter(
+                User.last_seen >= last_60_days,
+                User.last_seen < last_30_days,
+                User.is_active == True
+            ).count()
+            user_growth = ((current_active_users - previous_active_users) / (previous_active_users or 1)) * 100
+        except Exception as e:
+            current_app.logger.error(f'Error calculating user metrics: {str(e)}', exc_info=True)
+            raise
 
         # Get total content and growth
-        current_content = Post.query.filter(
-            Post.created_at >= last_30_days,
-            Post.published == True
-        ).count()
-        previous_content = Post.query.filter(
-            Post.created_at >= last_60_days,
-            Post.created_at < last_30_days,
-            Post.published == True
-        ).count()
-        content_growth = ((current_content - previous_content) / (previous_content or 1)) * 100
+        try:
+            current_content = Post.query.filter(
+                Post.created_at >= last_30_days,
+                Post.published == True
+            ).count()
+            previous_content = Post.query.filter(
+                Post.created_at >= last_60_days,
+                Post.created_at < last_30_days,
+                Post.published == True
+            ).count()
+            content_growth = ((current_content - previous_content) / (previous_content or 1)) * 100
+        except Exception as e:
+            current_app.logger.error(f'Error calculating content metrics: {str(e)}', exc_info=True)
+            raise
 
         # Get engagement metrics
-        current_engagement = Comment.query.filter(
-            Comment.created_at >= last_30_days
-        ).count()
-        previous_engagement = Comment.query.filter(
-            Comment.created_at >= last_60_days,
-            Comment.created_at < last_30_days
-        ).count()
-        engagement_growth = ((current_engagement - previous_engagement) / (previous_engagement or 1)) * 100
-        
-        # Calculate engagement rate
-        total_posts = Post.query.filter(Post.published == True).count()
-        engagement_rate = (current_engagement / (total_posts or 1)) * 100
+        try:
+            current_engagement = Comment.query.filter(
+                Comment.created_at >= last_30_days
+            ).count()
+            previous_engagement = Comment.query.filter(
+                Comment.created_at >= last_60_days,
+                Comment.created_at < last_30_days
+            ).count()
+            engagement_growth = ((current_engagement - previous_engagement) / (previous_engagement or 1)) * 100
+            
+            # Calculate engagement rate
+            total_posts = Post.query.filter(Post.published == True).count()
+            engagement_rate = (current_engagement / (total_posts or 1)) * 100
+        except Exception as e:
+            current_app.logger.error(f'Error calculating engagement metrics: {str(e)}', exc_info=True)
+            raise
 
         # Get top posts by views
         try:
@@ -809,32 +825,35 @@ def analytics():
             current_app.logger.error(f'Error getting browser breakdown: {str(e)}', exc_info=True)
             browsers = []
 
-        return render_template('admin/analytics.html',
-            metrics={
-                'views': {
-                    'current': current_views,
-                    'growth': view_growth
-                },
-                'visitors': {
-                    'current': current_active_users,
-                    'growth': user_growth
-                },
-                'duration': {
-                    'current': 0,  # We'll implement session duration later
-                    'growth': 0
-                },
-                'bounce_rate': {
-                    'current': 0,  # We'll implement bounce rate later
-                    'growth': 0
-                }
+        metrics = {
+            'views': {
+                'current': current_views,
+                'growth': view_growth
             },
+            'visitors': {
+                'current': current_active_users,
+                'growth': user_growth
+            },
+            'duration': {
+                'current': 0,  # We'll implement session duration later
+                'growth': 0
+            },
+            'bounce_rate': {
+                'current': 0,  # We'll implement bounce rate later
+                'growth': 0
+            }
+        }
+
+        return render_template('admin/analytics.html',
+            metrics=metrics,
             top_posts=top_posts,
             top_countries=top_countries,
             devices=devices,
             browsers=browsers
         )
     except Exception as e:
-        current_app.logger.error(f'Error loading analytics: {str(e)}', exc_info=True)
+        current_app.logger.error(f'Error in analytics route: {str(e)}\nTraceback:', exc_info=True)
+        db.session.rollback()  # Roll back any failed transactions
         flash('An error occurred while loading analytics data. Please try again.', 'danger')
         return redirect(url_for('admin.index'))
 
