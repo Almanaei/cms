@@ -810,15 +810,24 @@ def analytics():
             browsers = []
 
         return render_template('admin/analytics.html',
-            current_views=current_views,
-            view_growth=view_growth,
-            current_active_users=current_active_users,
-            user_growth=user_growth,
-            current_content=current_content,
-            content_growth=content_growth,
-            current_engagement=current_engagement,
-            engagement_growth=engagement_growth,
-            engagement_rate=engagement_rate,
+            metrics={
+                'views': {
+                    'current': current_views,
+                    'growth': view_growth
+                },
+                'visitors': {
+                    'current': current_active_users,
+                    'growth': user_growth
+                },
+                'duration': {
+                    'current': 0,  # We'll implement session duration later
+                    'growth': 0
+                },
+                'bounce_rate': {
+                    'current': 0,  # We'll implement bounce rate later
+                    'growth': 0
+                }
+            },
             top_posts=top_posts,
             top_countries=top_countries,
             devices=devices,
