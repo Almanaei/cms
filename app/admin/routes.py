@@ -691,6 +691,7 @@ def analytics():
     try:
         from sqlalchemy import func
         from datetime import datetime, timedelta
+        from collections import defaultdict
         
         # Initialize default values
         metrics = {
@@ -704,6 +705,17 @@ def analytics():
         top_countries = []
         devices = []
         browsers = []
+        
+        # Initialize traffic data
+        traffic = {
+            'peak_hours': defaultdict(int),
+            'sources': defaultdict(int)
+        }
+        
+        # Initialize behavior data
+        behavior = {
+            'events': defaultdict(int)
+        }
         
         # Get time ranges
         now = datetime.utcnow()
@@ -719,6 +731,25 @@ def analytics():
             ).count()
             view_growth = ((current_views - previous_views) / (previous_views or 1)) * 100
             metrics['views'] = {'current': current_views, 'growth': view_growth}
+            
+            # Calculate peak hours
+            page_views = PageView.query.filter(PageView.timestamp >= last_30_days).all()
+            for view in page_views:
+                hour = view.timestamp.strftime('%H:00')
+                traffic['peak_hours'][hour] += 1
+                
+                # Track traffic sources
+                source = view.referrer or 'Direct'
+                traffic['sources'][source] += 1
+                
+                # Track user behavior
+                if view.url.startswith('/post/'):
+                    behavior['events']['Post View'] += 1
+                elif view.url.startswith('/category/'):
+                    behavior['events']['Category View'] += 1
+                elif view.url == '/':
+                    behavior['events']['Home Page'] += 1
+                
         except Exception as e:
             current_app.logger.error(f'Error calculating view metrics: {str(e)}', exc_info=True)
 
@@ -767,6 +798,9 @@ def analytics():
             # Calculate engagement rate
             total_posts = Post.query.filter(Post.published == True).count()
             engagement_rate = (current_engagement / (total_posts or 1)) * 100
+            
+            # Track comment events
+            behavior['events']['Comments'] = current_engagement
         except Exception as e:
             current_app.logger.error(f'Error calculating engagement metrics: {str(e)}', exc_info=True)
 
@@ -836,13 +870,20 @@ def analytics():
         except Exception as e:
             current_app.logger.error(f'Error getting browser breakdown: {str(e)}', exc_info=True)
 
+        # Convert defaultdict to regular dict for JSON serialization
+        traffic['peak_hours'] = dict(traffic['peak_hours'])
+        traffic['sources'] = dict(traffic['sources'])
+        behavior['events'] = dict(behavior['events'])
+
         return render_template('admin/analytics.html',
             metrics=metrics,
             content_perf=content_perf,
             top_posts=top_posts,
             top_countries=top_countries,
             devices=devices,
-            browsers=browsers
+            browsers=browsers,
+            traffic=traffic,
+            behavior=behavior
         )
     except Exception as e:
         current_app.logger.error(f'Error in analytics route: {str(e)}\nTraceback:', exc_info=True)
@@ -859,7 +900,14 @@ def analytics():
             'top_posts': [],
             'top_countries': [],
             'devices': [],
-            'browsers': []
+            'browsers': [],
+            'traffic': {
+                'peak_hours': {},
+                'sources': {}
+            },
+            'behavior': {
+                'events': {}
+            }
         }
         return render_template('admin/analytics.html', **empty_data)
 
