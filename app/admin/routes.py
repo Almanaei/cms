@@ -774,9 +774,14 @@ def analytics():
             ).order_by(
                 func.count(PageView.id).desc()
             ).limit(5).all()
+            
+            # Format top posts for content performance section
+            content_perf = {
+                'top_content': [(post.title, views) for post, views in top_posts]
+            }
         except Exception as e:
             current_app.logger.error(f'Error getting top posts: {str(e)}', exc_info=True)
-            top_posts = []
+            content_perf = {'top_content': []}
 
         # Get top countries
         try:
@@ -846,6 +851,7 @@ def analytics():
 
         return render_template('admin/analytics.html',
             metrics=metrics,
+            content_perf=content_perf,  # Added content_perf to template context
             top_posts=top_posts,
             top_countries=top_countries,
             devices=devices,
