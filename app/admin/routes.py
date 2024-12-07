@@ -749,7 +749,7 @@ def analytics():
                 Post,
                 func.count(PageView.id).label('views')
             ).join(
-                PageView, PageView.path.like(func.concat('/post/%', Post.slug))
+                PageView, PageView.url.like(func.concat('/post/%', Post.slug))
             ).filter(
                 Post.published == True,
                 PageView.timestamp >= last_30_days

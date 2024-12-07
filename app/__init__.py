@@ -21,8 +21,9 @@ def create_app(config_class=Config):
     app.jinja_env.globals.update(now=datetime.utcnow)
 
     # Register custom filters
-    from app.utils.filters import timeago
+    from app.utils.filters import timeago, number_format
     app.jinja_env.filters['timeago'] = timeago
+    app.jinja_env.filters['number_format'] = number_format
 
     # Register Jinja2 filters
     @app.template_filter('datetime')

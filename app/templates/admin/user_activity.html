@@ -38,8 +38,8 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <span class="badge bg-{% if activity.action.startswith('create') %}success{% elif activity.action.startswith('update') %}info{% elif activity.action.startswith('delete') %}danger{% else %}secondary{% endif %}">
-                                    {{ activity.action|replace('_', ' ')|title }}
+                                <span class="badge bg-{% if activity.activity_type.startswith('create') %}success{% elif activity.activity_type.startswith('update') %}info{% elif activity.activity_type.startswith('delete') %}danger{% else %}secondary{% endif %}">
+                                    {{ activity.activity_type|replace('_', ' ')|title }}
                                 </span>
                             </td>
                             <td>{{ activity.ip_address or 'N/A' }}</td>
