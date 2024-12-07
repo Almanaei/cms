@@ -510,7 +510,7 @@ def create_user():
             },
             success=False
         )
-        current_app.logger.error(f'Error creating user: {str(e)}')
+        current_app.logger.error(f'Error creating user: {str(e)}', exc_info=True)
         flash('An error occurred while creating the user. Please try again.', 'danger')
         return redirect(url_for('admin.users'))
 
@@ -574,7 +574,7 @@ def edit_user(id):
                 },
                 success=False
             )
-            current_app.logger.error(f'Error editing user: {str(e)}')
+            current_app.logger.error(f'Error editing user: {str(e)}', exc_info=True)
             flash('An error occurred while updating the user. Please try again.', 'danger')
             
     return render_template('admin/edit_user.html', form=form, user=user)
@@ -626,7 +626,7 @@ def delete_user(id):
             },
             success=False
         )
-        current_app.logger.error(f'Error deleting user: {str(e)}')
+        current_app.logger.error(f'Error deleting user: {str(e)}', exc_info=True)
         flash('An error occurred while deleting the user. Please try again.', 'danger')
         return redirect(url_for('admin.users'))
 
@@ -640,7 +640,7 @@ def user_activity_list():
             page=page, per_page=20, error_out=False)
         return render_template('admin/user_activity.html', activities=activities)
     except Exception as e:
-        current_app.logger.error(f'Error loading user activity list: {str(e)}')
+        current_app.logger.error(f'Error loading user activity list: {str(e)}', exc_info=True)
         flash('An error occurred while loading the activity list. Please try again.', 'danger')
         return redirect(url_for('admin.index'))
 
@@ -655,7 +655,7 @@ def user_activity_detail(id):
             UserActivity.timestamp.desc()).paginate(page=page, per_page=20, error_out=False)
         return render_template('admin/user_activity_detail.html', user=user, activities=activities)
     except Exception as e:
-        current_app.logger.error(f'Error loading user activity detail for user {id}: {str(e)}')
+        current_app.logger.error(f'Error loading user activity detail for user {id}: {str(e)}', exc_info=True)
         flash('An error occurred while loading the activity details. Please try again.', 'danger')
         return redirect(url_for('admin.user_activity_list'))
 
@@ -759,7 +759,7 @@ def analytics():
                 func.count(PageView.id).desc()
             ).limit(5).all()
         except Exception as e:
-            current_app.logger.error(f'Error getting top posts: {str(e)}')
+            current_app.logger.error(f'Error getting top posts: {str(e)}', exc_info=True)
             top_posts = []
 
         # Get top countries
@@ -776,7 +776,7 @@ def analytics():
                 func.count(PageView.id).desc()
             ).limit(5).all()
         except Exception as e:
-            current_app.logger.error(f'Error getting top countries: {str(e)}')
+            current_app.logger.error(f'Error getting top countries: {str(e)}', exc_info=True)
             top_countries = []
 
         # Get device breakdown
@@ -791,7 +791,7 @@ def analytics():
                 PageView.device_type
             ).all()
         except Exception as e:
-            current_app.logger.error(f'Error getting device breakdown: {str(e)}')
+            current_app.logger.error(f'Error getting device breakdown: {str(e)}', exc_info=True)
             devices = []
 
         # Get browser breakdown
@@ -806,7 +806,7 @@ def analytics():
                 PageView.browser
             ).all()
         except Exception as e:
-            current_app.logger.error(f'Error getting browser breakdown: {str(e)}')
+            current_app.logger.error(f'Error getting browser breakdown: {str(e)}', exc_info=True)
             browsers = []
 
         return render_template('admin/analytics.html',
@@ -834,7 +834,7 @@ def analytics():
             browsers=browsers
         )
     except Exception as e:
-        current_app.logger.error(f'Error loading analytics: {str(e)}')
+        current_app.logger.error(f'Error loading analytics: {str(e)}', exc_info=True)
         flash('An error occurred while loading analytics data. Please try again.', 'danger')
         return redirect(url_for('admin.index'))
 
