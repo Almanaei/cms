@@ -384,6 +384,26 @@ class MediaItem(db.Model):
             return url_for('media.download_media', id=self.id, thumbnail=True)
         return None
 
+class DatabaseBackup(db.Model):
+    """Model for database backups."""
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), nullable=False, unique=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    size = db.Column(db.Integer)  # Size in bytes
+    description = db.Column(db.Text)
+
+    def __repr__(self):
+        return f'<DatabaseBackup {self.filename}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'filename': self.filename,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'size': self.size,
+            'description': self.description
+        }
+
 class BackupSchedule(db.Model):
     """Model for backup schedule settings."""
     id = db.Column(db.Integer, primary_key=True)

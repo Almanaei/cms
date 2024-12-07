@@ -1056,6 +1056,123 @@ def import_settings():
         
     return redirect(url_for('admin.settings'))
 
+@bp.route('/database-backups')
+@login_required
+@admin_required
+def database_backups():
+    """View database backups."""
+    backups = DatabaseBackup.query.order_by(DatabaseBackup.created_at.desc()).all()
+    return render_template('admin/database_backups.html', backups=backups)
+
+@bp.route('/database-backups/create', methods=['POST'])
+@login_required
+@admin_required
+def create_database_backup():
+    """Create a new database backup."""
+    import shutil
+    from datetime import datetime
+    import os
+    
+    try:
+        # Ensure backup directory exists
+        backup_dir = current_app.config['BACKUP_DIR']
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir, exist_ok=True)
+            os.chmod(backup_dir, 0o755)
+        
+        # Create backup filename
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        filename = f"backup_{timestamp}.db"
+        
+        # Get database path
+        if os.environ.get('CPANEL_ENV') == 'true':
+            db_path = os.path.join('/home', os.environ.get('USER', ''), 'app.db')
+        else:
+            db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+            if not db_path.startswith('/'):
+                db_path = os.path.join(current_app.root_path, '..', db_path)
+        
+        backup_path = os.path.join(backup_dir, filename)
+        
+        # Create backup file
+        shutil.copy2(db_path, backup_path)
+        os.chmod(backup_path, 0o644)
+        
+        # Create backup record
+        backup = DatabaseBackup(
+            filename=filename,
+            size=os.path.getsize(backup_path),
+            description=f"Manual backup created on {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        db.session.add(backup)
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Backup created successfully',
+            'backup': backup.to_dict()
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f'Backup creation failed: {str(e)}')
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to create backup: {str(e)}'
+        }), 500
+
+@bp.route('/database-backups/<int:id>/download')
+@login_required
+@admin_required
+def download_database_backup(id):
+    """Download a backup file."""
+    try:
+        backup = DatabaseBackup.query.get_or_404(id)
+        backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
+        
+        if not os.path.exists(backup_path):
+            flash('Backup file not found.', 'error')
+            return redirect(url_for('admin.database_backups'))
+        
+        return send_file(
+            backup_path,
+            as_attachment=True,
+            download_name=backup.filename
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f'Error downloading backup: {str(e)}')
+        flash(f'Error downloading backup: {str(e)}', 'error')
+        return redirect(url_for('admin.database_backups'))
+
+@bp.route('/database-backups/<int:id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_database_backup(id):
+    """Delete a backup."""
+    try:
+        backup = DatabaseBackup.query.get_or_404(id)
+        backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
+        
+        # Delete file if exists
+        if os.path.exists(backup_path):
+            os.remove(backup_path)
+        
+        # Delete database record
+        db.session.delete(backup)
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Backup deleted successfully'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f'Error deleting backup: {str(e)}')
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to delete backup: {str(e)}'
+        }), 500
+
 @bp.route('/backups')
 @login_required
 @admin_required
