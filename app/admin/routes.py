@@ -727,6 +727,11 @@ def analytics():
             'operating_systems': {'Windows': 0, 'MacOS': 0, 'Linux': 0, 'iOS': 0, 'Android': 0, 'Other': 0}
         }
         
+        # Initialize geographic data
+        geo_data = {
+            'countries': defaultdict(int)
+        }
+        
         # Get time ranges
         now = datetime.utcnow()
         last_30_days = now - timedelta(days=30)
@@ -787,6 +792,10 @@ def analytics():
                         tech_metrics['operating_systems'][os_name] += 1
                     else:
                         tech_metrics['operating_systems']['Other'] += 1
+                        
+                # Track geographic data
+                if view.country:
+                    geo_data['countries'][view.country] += 1
                 
         except Exception as e:
             current_app.logger.error(f'Error calculating view metrics: {str(e)}', exc_info=True)
@@ -880,6 +889,9 @@ def analytics():
         except Exception as e:
             current_app.logger.error(f'Error getting top countries: {str(e)}', exc_info=True)
 
+        # Convert defaultdict to regular dict for JSON serialization
+        geo_data['countries'] = dict(geo_data['countries'])
+
         return render_template('admin/analytics.html',
             metrics=metrics,
             content_perf=content_perf,
@@ -887,7 +899,8 @@ def analytics():
             top_countries=top_countries,
             traffic=traffic,
             behavior=behavior,
-            tech_metrics=tech_metrics
+            tech_metrics=tech_metrics,
+            geo_data=geo_data
         )
     except Exception as e:
         current_app.logger.error(f'Error in analytics route: {str(e)}\nTraceback:', exc_info=True)
@@ -919,6 +932,9 @@ def analytics():
             'tech_metrics': {
                 'browsers': {'Chrome': 0, 'Firefox': 0, 'Safari': 0, 'Edge': 0, 'Other': 0},
                 'operating_systems': {'Windows': 0, 'MacOS': 0, 'Linux': 0, 'iOS': 0, 'Android': 0, 'Other': 0}
+            },
+            'geo_data': {
+                'countries': {}
             }
         }
         return render_template('admin/analytics.html', **empty_data)
