@@ -2,7 +2,7 @@ from flask.cli import FlaskGroup
 from app import create_app, db
 from app.models import User, Role, Settings
 from datetime import datetime
-import bcrypt
+from werkzeug.security import generate_password_hash
 
 app = create_app()
 
@@ -22,19 +22,16 @@ def setup_initial_data():
             )
             db.session.add(admin_role)
             print("✓ Admin role created")
+            db.session.flush()  # Get the role ID
         
         # Create default admin user
         print("\nCreating admin user...")
         admin_user = User.query.filter_by(username='admin').first()
         if not admin_user:
-            # Generate salt and hash password
-            salt = bcrypt.gensalt()
-            password_hash = bcrypt.hashpw('admin123'.encode('utf-8'), salt)
-            
             admin_user = User(
                 username='admin',
                 email='admin@example.com',
-                password_hash=password_hash.decode('utf-8'),
+                password_hash=generate_password_hash('admin123'),
                 is_admin=True,
                 is_active=True,
                 email_confirmed=True,
