@@ -1237,15 +1237,17 @@ def restore_database_backup(id):
 def update_backup_schedule():
     """Update backup schedule settings."""
     try:
-        schedule = BackupSchedule.get_schedule()
+        # Get settings from request
+        enabled = request.form.get('enabled', 'false') == 'true'
+        frequency = request.form.get('frequency', 'daily')
+        backup_time = request.form.get('time', '00:00')
+        keep_count = int(request.form.get('keep_count', 10))
         
-        # Update schedule settings
-        schedule.enabled = request.form.get('enabled', 'false') == 'true'
-        schedule.frequency = request.form.get('frequency', 'daily')
-        schedule.time = request.form.get('time', '00:00')
-        schedule.keep_count = int(request.form.get('keep_count', 10))
-        
-        db.session.commit()
+        # Store settings
+        Settings.set('backup_enabled', str(enabled).lower(), type='boolean')
+        Settings.set('backup_frequency', frequency)
+        Settings.set('backup_time', backup_time)
+        Settings.set('backup_keep_count', str(keep_count), type='integer')
         
         return jsonify({
             'status': 'success',
@@ -1254,7 +1256,6 @@ def update_backup_schedule():
         
     except Exception as e:
         current_app.logger.error(f'Error updating backup schedule: {str(e)}')
-        db.session.rollback()
         return jsonify({
             'status': 'error',
             'message': f'Failed to update backup schedule: {str(e)}'
@@ -1263,7 +1264,7 @@ def update_backup_schedule():
 def cleanup_old_backups():
     """Delete old backups if we exceed the maximum number."""
     try:
-        max_backups = current_app.config.get('MAX_BACKUPS', 10)
+        max_backups = int(Settings.get('backup_keep_count', 10))
         backups = Backup.query.order_by(Backup.created_at.desc()).all()
         
         if len(backups) > max_backups:
