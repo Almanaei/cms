@@ -1,7 +1,7 @@
 """Create backups table
 
 Revision ID: 2024_01_15_create_backups
-Revises: 2024_01_14_add_media_table
+Revises: 
 Create Date: 2024-01-15 12:00:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '2024_01_15_create_backups'
-down_revision = '2024_01_14_add_media_table'
+down_revision = None
 branch_labels = None
 depends_on = None
 
