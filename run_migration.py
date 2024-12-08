@@ -1,6 +1,6 @@
 from flask.cli import FlaskGroup
 from app import create_app, db
-from flask_migrate import Migrate, upgrade, stamp, revision
+from flask_migrate import Migrate, upgrade, stamp, merge_heads
 
 app = create_app()
 migrate = Migrate(app, db)
@@ -8,14 +8,14 @@ migrate = Migrate(app, db)
 if __name__ == '__main__':
     try:
         with app.app_context():
-            # Generate new migration for backup table rename
+            # First try to merge the heads
             try:
-                revision(message='rename_backup_table_to_backups')
-                print("Successfully created new migration for backup table rename")
+                merge_heads()
+                print("Successfully merged migration heads")
             except Exception as e:
-                print(f"Warning during migration creation: {e}")
-            
-            # Upgrade to the latest version
+                print(f"Warning during merge: {e}")
+                
+            # Then try to upgrade to the latest
             try:
                 upgrade(revision='heads')
                 print("Successfully upgraded database to latest revision")
