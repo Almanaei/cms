@@ -1,47 +1,31 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from app import create_app, db
-from alembic.script import ScriptDirectory
-from alembic.config import Config
+import os
 
 app = create_app()
 migrate = Migrate(app, db)
 
 if __name__ == '__main__':
     with app.app_context():
-        # Get Alembic config and script directory
-        config = Config("migrations/alembic.ini")
-        script = ScriptDirectory.from_config(config)
-        
-        # Get current heads from script
-        heads = script.get_heads()
+        # Get the migrations directory
+        migrations_dir = os.path.join(os.path.dirname(__file__), 'migrations', 'versions')
         
         print("\nCurrent Database State:")
         print("----------------------")
-        if heads:
-            print("Current heads:")
-            for head in heads:
-                print(f"- {head}")
-        else:
-            print("No migration heads found. Database might be empty or not initialized.")
-
+        
+        # List all migration files
+        print("Available migrations:")
+        for filename in sorted(os.listdir(migrations_dir)):
+            if filename.endswith('.py') and not filename.startswith('__'):
+                print(f"- {filename}")
+        
         # Get current revision from database
-        from alembic.runtime.migration import MigrationContext
-        from sqlalchemy import create_engine
+        from flask_migrate import current
+        current_rev = current()
         
-        engine = db.engine
-        conn = engine.connect()
-        context = MigrationContext.configure(conn)
-        current_rev = context.get_current_revision()
-        
+        print(f"\nCurrent database revision: {current_rev}")
         if current_rev:
-            print(f"\nCurrent revision: {current_rev}")
-            if current_rev in heads:
-                print("Database is up to date!")
-            else:
-                print("Database needs to be upgraded to latest revision.")
+            print("Database is initialized with migrations.")
         else:
-            print("\nNo current revision found. Database might be empty or not initialized.")
-            
-        conn.close()
+            print("Database might be empty or not initialized.")
