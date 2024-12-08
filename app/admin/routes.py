@@ -1,14 +1,19 @@
-import os
-import shutil
-from datetime import datetime
-from flask import render_template, flash, redirect, url_for, request, current_app, send_file, jsonify
+from datetime import datetime, timedelta
+from flask import render_template, redirect, url_for, flash, request, jsonify, send_file
+from flask import current_app, abort, Response
+from werkzeug.utils import secure_filename
 from flask_login import login_required, current_user
 from app import db, csrf
 from app.admin import bp
 from app.models import Post, Category, User, Settings, Role, Backup
 from app.extensions import db, csrf
 from app.decorators import admin_required, permission_required
-from werkzeug.utils import secure_filename
+import os
+import json
+import logging
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 @bp.route('/')
 @login_required
@@ -1372,9 +1377,22 @@ def allowed_file(filename, allowed_extensions):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
-@bp.route('/database-backups')
-@login_required
-@admin_required
-def database_backups():
-    backups = Backup.query.order_by(Backup.created_at.desc()).all()
-    return render_template('admin/database_backups.html', backups=backups)
+def cleanup_old_backups():
+    """Delete old backups if we exceed the maximum number."""
+    try:
+        max_backups = int(Settings.get('backup_keep_count', 10))
+        backups = Backup.query.order_by(Backup.created_at.desc()).all()
+        
+        if len(backups) > max_backups:
+            for backup in backups[max_backups:]:
+                backup_path = os.path.join(current_app.config.get('BACKUP_DIR', os.path.join(current_app.instance_path, 'backups')), backup.filename)
+                if os.path.exists(backup_path):
+                    os.remove(backup_path)
+                db.session.delete(backup)
+            
+            db.session.commit()
+            current_app.logger.info(f'Cleaned up old backups, keeping {max_backups} most recent')
+            
+    except Exception as e:
+        current_app.logger.error(f'Error cleaning up old backups: {str(e)}')
+        db.session.rollback()
