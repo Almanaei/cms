@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from config import Config
 from datetime import datetime
@@ -26,6 +25,11 @@ def create_app(test_config=None):
     migrate.init_app(app, db)
     login.init_app(app)
     csrf.init_app(app)
+
+    # Configure login
+    login.login_view = 'auth.login'
+    login.login_message = 'Please log in to access this page.'
+    login.login_message_category = 'info'
 
     # Create instance directory if it doesn't exist
     if not os.path.exists(app.instance_path):
@@ -142,9 +146,6 @@ def create_app(test_config=None):
         return {
             'get_setting': Settings.get
         }
-
-    login_manager.login_view = 'auth.login'
-    login_manager.login_message_category = 'info'
 
     from app.cli import init_roles_command, create_admin_command, settings_group
     app.cli.add_command(init_roles_command)
