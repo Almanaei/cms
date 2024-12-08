@@ -386,16 +386,17 @@ class MediaItem(db.Model):
 
 class Backup(db.Model):
     """Model for database backups."""
-    __tablename__ = 'database_backup'
+    __tablename__ = 'backups'
+    
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(255), nullable=False)
-    size = db.Column(db.Integer, nullable=False)  # Size in bytes
+    size = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<Backup {self.filename}>'
-    
+
     def to_dict(self):
         """Convert backup to dictionary."""
         return {
@@ -405,7 +406,7 @@ class Backup(db.Model):
             'description': self.description,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
-    
+
     @property
     def filepath(self):
         """Get the full path to the backup file."""
