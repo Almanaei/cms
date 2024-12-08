@@ -76,10 +76,11 @@ def create_app(config_class=Config):
         app.logger.handlers = []  # Remove default handlers
         app.logger.addHandler(file_handler)
         app.logger.addHandler(stream_handler)
-        app.logger.setLevel(logging.ERROR)
+        app.logger.setLevel(logging.INFO)
         
-        # Log an initial message to verify logging is working
-        app.logger.error('Logging system initialized')
+        # Log an initial message to verify logging is working (only if debug mode)
+        if app.debug:
+            app.logger.info('Logging system initialized')
 
         # Register error handlers
         @app.errorhandler(Exception)
