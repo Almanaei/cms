@@ -2,8 +2,8 @@ from datetime import datetime
 import jwt
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
+from app.extensions import db, login
 from flask import current_app, request
-from app import db, login_manager
 from slugify import slugify
 from datetime import timedelta
 from flask import url_for
@@ -11,7 +11,7 @@ from sqlalchemy import event
 import os
 import json
 
-@login_manager.user_loader
+@login.user_loader
 def load_user(id):
     return User.query.get(int(id))
 
