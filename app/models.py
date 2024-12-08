@@ -456,27 +456,16 @@ class ReportDraft(db.Model):
             db.session.commit()
         return draft
 
-# Settings model event listeners
-@event.listens_for(Settings, 'after_update')
 def receive_after_update(mapper, connection, target):
     """Clear cache entry when a setting is updated."""
     Settings._cache.pop(target.key, None)
 
-@event.listens_for(Settings, 'after_delete')
 def receive_after_delete(mapper, connection, target):
     """Clear cache entry when a setting is deleted."""
     Settings._cache.pop(target.key, None)
 
-# Association Tables
-post_tags = db.Table('post_tags',
-    db.Column('post_id', db.Integer, db.ForeignKey('post.id'), primary_key=True),
-    db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
-)
-
 class Settings(db.Model):
     __tablename__ = 'settings'
-    
-    # Class-level cache
     _cache = {}
     
     id = db.Column(db.Integer, primary_key=True)
@@ -488,58 +477,68 @@ class Settings(db.Model):
     @staticmethod
     def get(key, default=None):
         """Get a setting value by key."""
+        # Check cache first
+        if key in Settings._cache:
+            return Settings._cache[key]
+        
+        # Query database
         setting = Settings.query.filter_by(key=key).first()
-        if setting is None:
-            return default
-            
-        try:
+        if setting:
+            value = setting.value
+            # Convert value based on type
             if setting.type == 'boolean':
-                return setting.value.lower() in ('true', '1', 'yes', 'on')
+                value = value.lower() in ('true', '1', 'yes', 'on')
             elif setting.type == 'integer':
                 # Handle float strings by converting to float first then to int
-                return int(float(setting.value))
+                value = int(float(setting.value))
             elif setting.type == 'float':
-                return float(setting.value)
+                value = float(setting.value)
             elif setting.type == 'json':
-                return json.loads(setting.value)
+                value = json.loads(setting.value)
             else:  # string
-                return setting.value
-        except (ValueError, json.JSONDecodeError) as e:
-            current_app.logger.error(f"Error converting setting {key}: {str(e)}")
-            return default
+                value = setting.value
+            
+            # Cache the value
+            Settings._cache[key] = value
+            return value
+            
+        return default
 
     @staticmethod
     def set(key, value, type='string', description=None):
         """Set a setting value."""
         setting = Settings.query.filter_by(key=key).first()
-        
-        # Convert value to string based on type
+        if not setting:
+            setting = Settings(key=key)
+            
+        # Convert value based on type
         if isinstance(value, bool):
-            str_value = str(value).lower()
             type = 'boolean'
+            value = str(value)
         elif isinstance(value, (int, float)):
-            str_value = str(value)
             type = 'float' if isinstance(value, float) else 'integer'
+            value = str(value)
         elif isinstance(value, (dict, list)):
-            str_value = json.dumps(value)
             type = 'json'
-        else:
-            str_value = str(value)
-            type = 'string'
+            value = json.dumps(value)
+            
+        setting.value = value
+        setting.type = type
+        if description:
+            setting.description = description
+            
+        db.session.add(setting)
+        db.session.commit()
+        
+        # Update cache
+        Settings._cache[key] = value
 
-        if setting is None:
-            setting = Settings(key=key, value=str_value, type=type, description=description)
-            db.session.add(setting)
-        else:
-            setting.value = str_value
-            setting.type = type
-            if description:
-                setting.description = description
+# Register event listeners for Settings model
+event.listen(Settings, 'after_update', receive_after_update)
+event.listen(Settings, 'after_delete', receive_after_delete)
 
-        try:
-            db.session.commit()
-            return True
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Error saving setting {key}: {str(e)}")
-            return False
+# Association Tables
+post_tags = db.Table('post_tags',
+    db.Column('post_id', db.Integer, db.ForeignKey('post.id'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
+)
