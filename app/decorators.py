@@ -13,3 +13,16 @@ def admin_required(f):
             abort(403)
         return f(*args, **kwargs)
     return decorated_function
+
+def permission_required(permission):
+    """Require specific permission for a view."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                abort(401)
+            if not current_user.role or not current_user.role.has_permission(permission):
+                abort(403)
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator

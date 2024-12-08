@@ -8,7 +8,7 @@ from app.admin import bp
 from app.admin.forms import SettingsForm
 from app.models import Post, Category, User, Settings, Role, Backup
 from app.extensions import db, csrf
-from app.decorators import admin_required
+from app.decorators import admin_required, permission_required
 from werkzeug.utils import secure_filename
 
 @bp.route('/')
