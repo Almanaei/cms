@@ -1074,7 +1074,8 @@ def database_backups():
     """View database backups."""
     try:
         backups = Backup.query.order_by(Backup.created_at.desc()).all()
-        return render_template('admin/database_backups.html', backups=backups)
+        schedule = BackupSchedule.get_schedule()
+        return render_template('admin/database_backups.html', backups=backups, schedule=schedule)
     except Exception as e:
         current_app.logger.error(f'Error accessing database backups: {str(e)}')
         flash('Error accessing database backups', 'error')
@@ -1093,6 +1094,7 @@ def create_database_backup():
             
         if not os.path.exists(backup_dir):
             os.makedirs(backup_dir, exist_ok=True)
+            os.chmod(backup_dir, 0o755)  # Set directory permissions to 755
         
         # Create backup filename
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
@@ -1111,12 +1113,13 @@ def create_database_backup():
         
         # Create backup file
         shutil.copy2(db_path, backup_path)
+        os.chmod(backup_path, 0o644)  # Set file permissions to 644
         
         # Create backup record
         backup = Backup(
             filename=filename,
             size=os.path.getsize(backup_path),
-            description=f"Manual backup created on {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
+            description=request.form.get('note', f"Manual backup created on {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
         )
         db.session.add(backup)
         db.session.commit()
@@ -1189,187 +1192,44 @@ def delete_database_backup(id):
             'message': f'Failed to delete backup: {str(e)}'
         }), 500
 
-@bp.route('/backups')
+@bp.route('/database-backups/<int:id>/restore', methods=['POST'])
 @login_required
 @admin_required
-def backups():
-    """View backup list."""
-    backups = Backup.query.order_by(Backup.created_at.desc()).all()
-    schedule = BackupSchedule.get_schedule()
-    return render_template('admin/backups.html', backups=backups, schedule=schedule)
-
-@bp.route('/backups/create', methods=['POST'])
-@login_required
-@admin_required
-def create_backup():
-    """Create a new backup."""
-    import shutil
-    from datetime import datetime
-    import os
-    
-    try:
-        # Ensure backup directory exists
-        backup_dir = current_app.config['BACKUP_DIR']
-        if not os.path.exists(backup_dir):
-            os.makedirs(backup_dir, exist_ok=True)
-            # Set directory permissions to 755
-            os.chmod(backup_dir, 0o755)
-        
-        # Create backup record
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-        filename = f"{current_app.config['BACKUP_FILE_PREFIX']}{timestamp}.db"
-        backup = Backup(
-            filename=filename,
-            type='manual',
-            status='pending',
-            note=request.form.get('note', '')
-        )
-        db.session.add(backup)
-        db.session.commit()
-        
-        try:
-            # Get the database file path based on environment
-            if os.environ.get('CPANEL_ENV') == 'true':
-                db_path = os.path.join('/home', os.environ.get('USER', ''), 'app.db')
-            else:
-                db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
-                if not db_path.startswith('/'):  # Relative path
-                    db_path = os.path.join(current_app.root_path, '..', db_path)
-            
-            backup_path = os.path.join(backup_dir, filename)
-            
-            # Create backup with proper permissions
-            shutil.copy2(db_path, backup_path)
-            os.chmod(backup_path, 0o644)  # Set file permissions to 644
-            
-            # Update backup status
-            backup.status = 'completed'
-            backup.size = os.path.getsize(backup_path)
-            backup.completed_at = datetime.utcnow()
-            db.session.commit()
-            
-            return jsonify({
-                'status': 'success',
-                'message': 'Backup created successfully',
-                'backup': {
-                    'id': backup.id,
-                    'filename': backup.filename,
-                    'created_at': backup.created_at.isoformat(),
-                    'size': backup.size
-                }
-            })
-            
-        except Exception as e:
-            current_app.logger.error(f'Error during backup creation: {str(e)}')
-            backup.status = 'failed'
-            backup.note = str(e)
-            db.session.commit()
-            raise
-            
-    except Exception as e:
-        current_app.logger.error(f'Backup creation failed: {str(e)}')
-        return jsonify({
-            'status': 'error',
-            'message': f'Failed to create backup: {str(e)}'
-        }), 500
-
-@bp.route('/backups/<int:id>/download')
-@login_required
-@admin_required
-def download_backup(id):
-    """Download a backup file."""
-    try:
-        backup = Backup.query.get_or_404(id)
-        backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
-        
-        if not os.path.exists(backup_path):
-            flash('Backup file not found.', 'error')
-            return redirect(url_for('admin.backups'))
-        
-        return send_file(
-            backup_path,
-            as_attachment=True,
-            download_name=backup.filename
-        )
-        
-    except Exception as e:
-        current_app.logger.error(f'Error downloading backup: {str(e)}')
-        flash(f'Error downloading backup: {str(e)}', 'error')
-        return redirect(url_for('admin.backups'))
-
-@bp.route('/backups/<int:id>/delete', methods=['POST'])
-@login_required
-@admin_required
-def delete_backup(id):
-    """Delete a backup."""
-    try:
-        backup = Backup.query.get_or_404(id)
-        backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
-        
-        # Delete file if exists
-        if os.path.exists(backup_path):
-            os.remove(backup_path)
-        
-        # Delete database record
-        db.session.delete(backup)
-        db.session.commit()
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Backup deleted successfully'
-        })
-        
-    except Exception as e:
-        current_app.logger.error(f'Error deleting backup: {str(e)}')
-        return jsonify({
-            'status': 'error',
-            'message': f'Failed to delete backup: {str(e)}'
-        }), 500
-
-@bp.route('/backups/<int:id>/restore', methods=['POST'])
-@login_required
-@admin_required
-def restore_backup(id):
-    """Restore a backup."""
+def restore_database_backup(id):
+    """Restore a database backup."""
     try:
         backup = Backup.query.get_or_404(id)
         backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
         
         if not os.path.exists(backup_path):
             raise FileNotFoundError('Backup file not found')
-        
-        # Get the database path based on environment
+            
+        # Get database path
         if os.environ.get('CPANEL_ENV') == 'true':
             db_path = os.path.join('/home', os.environ.get('USER', ''), 'app.db')
         else:
-            db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
-            if not db_path.startswith('/'):
-                db_path = os.path.join(current_app.root_path, '..', db_path)
-        
-        # Create a temporary backup of current database
+            db_path = os.path.join(current_app.root_path, '..', 'app.db')
+            
+        # Create a temporary backup of the current database
         temp_backup = f"{db_path}.temp"
         shutil.copy2(db_path, temp_backup)
         
         try:
             # Restore the backup
             shutil.copy2(backup_path, db_path)
-            os.chmod(db_path, 0o644)  # Set proper permissions
+            os.remove(temp_backup)  # Remove temporary backup after successful restore
             
             return jsonify({
                 'status': 'success',
-                'message': 'Backup restored successfully'
+                'message': 'Database restored successfully'
             })
             
         except Exception as e:
-            # If restore fails, try to restore from temp backup
+            # If restore fails, try to restore from temporary backup
             if os.path.exists(temp_backup):
                 shutil.copy2(temp_backup, db_path)
-            raise e
-            
-        finally:
-            # Clean up temp backup
-            if os.path.exists(temp_backup):
                 os.remove(temp_backup)
+            raise e
             
     except Exception as e:
         current_app.logger.error(f'Error restoring backup: {str(e)}')
@@ -1378,18 +1238,19 @@ def restore_backup(id):
             'message': f'Failed to restore backup: {str(e)}'
         }), 500
 
-@bp.route('/backups/schedule', methods=['POST'])
+@bp.route('/database-backups/schedule', methods=['POST'])
 @login_required
 @admin_required
 def update_backup_schedule():
     """Update backup schedule settings."""
     try:
         schedule = BackupSchedule.get_schedule()
+        
+        # Update schedule settings
+        schedule.enabled = request.form.get('enabled', 'false') == 'true'
         schedule.frequency = request.form.get('frequency', 'daily')
         schedule.time = request.form.get('time', '00:00')
-        schedule.retention = int(request.form.get('retention', 30))
-        schedule.notify_on_failure = bool(request.form.get('notify_on_failure', True))
-        schedule.enabled = bool(request.form.get('enabled', True))
+        schedule.keep_count = int(request.form.get('keep_count', 10))
         
         db.session.commit()
         
@@ -1400,10 +1261,31 @@ def update_backup_schedule():
         
     except Exception as e:
         current_app.logger.error(f'Error updating backup schedule: {str(e)}')
+        db.session.rollback()
         return jsonify({
             'status': 'error',
             'message': f'Failed to update backup schedule: {str(e)}'
         }), 500
+
+def cleanup_old_backups():
+    """Delete old backups if we exceed the maximum number."""
+    try:
+        max_backups = current_app.config.get('MAX_BACKUPS', 10)
+        backups = Backup.query.order_by(Backup.created_at.desc()).all()
+        
+        if len(backups) > max_backups:
+            for backup in backups[max_backups:]:
+                backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
+                if os.path.exists(backup_path):
+                    os.remove(backup_path)
+                db.session.delete(backup)
+            
+            db.session.commit()
+            current_app.logger.info(f'Cleaned up old backups, keeping {max_backups} most recent')
+            
+    except Exception as e:
+        current_app.logger.error(f'Error cleaning up old backups: {str(e)}')
+        db.session.rollback()
 
 @bp.route('/comments/bulk-action', methods=['POST'])
 @login_required
@@ -1496,19 +1378,3 @@ def upload_editor_image():
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in allowed_extensions
-
-def cleanup_old_backups():
-    """Delete old backups if we exceed the maximum number."""
-    max_backups = current_app.config.get('MAX_BACKUPS', 10)
-    backups = Backup.query.order_by(Backup.created_at.desc()).all()
-    
-    if len(backups) > max_backups:
-        for backup in backups[max_backups:]:
-            try:
-                if os.path.exists(backup.filepath):
-                    os.remove(backup.filepath)
-                db.session.delete(backup)
-            except Exception as e:
-                current_app.logger.error(f'Error cleaning up backup {backup.id}: {str(e)}', exc_info=True)
-        
-        db.session.commit()

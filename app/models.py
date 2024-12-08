@@ -394,6 +394,9 @@ class Backup(db.Model):
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    def __repr__(self):
+        return f'<Backup {self.filename}>'
+    
     def to_dict(self):
         """Convert backup to dictionary."""
         return {
@@ -403,48 +406,72 @@ class Backup(db.Model):
             'description': self.description,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S')
         }
+        
+    @property
+    def filepath(self):
+        """Get the full path to the backup file."""
+        return os.path.join(current_app.config['BACKUP_DIR'], self.filename)
 
-class DatabaseBackup(db.Model):
-    """Model for database backups."""
+class UserActivityLog(db.Model):
+    """Model for tracking detailed user activity"""
     id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(255), nullable=False, unique=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    size = db.Column(db.Integer)  # Size in bytes
-    description = db.Column(db.Text)
-
-    def __repr__(self):
-        return f'<DatabaseBackup {self.filename}>'
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'filename': self.filename,
-            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'size': self.size,
-            'description': self.description
-        }
-
-class BackupSchedule(db.Model):
-    """Model for backup schedule settings."""
-    id = db.Column(db.Integer, primary_key=True)
-    frequency = db.Column(db.String(20), default='daily')  # daily, weekly, monthly
-    time = db.Column(db.String(5), default='00:00')  # 24-hour format HH:MM
-    retention = db.Column(db.Integer, default=30)  # days to keep backups
-    notify_on_failure = db.Column(db.Boolean, default=True)
-    enabled = db.Column(db.Boolean, default=True)
-    last_run = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    action = db.Column(db.String(50), nullable=False)  # e.g., 'report_generated', 'report_exported'
+    details = db.Column(db.JSON)  # Store additional details as JSON
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('activity_logs', lazy=True))
 
     @staticmethod
-    def get_schedule():
-        """Get the current backup schedule or create a default one."""
-        schedule = BackupSchedule.query.first()
-        if not schedule:
-            schedule = BackupSchedule()
-            db.session.add(schedule)
+    def log_activity(user_id, action, details=None):
+        """Helper method to log user activity"""
+        log = UserActivityLog(
+            user_id=user_id,
+            action=action,
+            details=details or {}
+        )
+        db.session.add(log)
+        db.session.commit()
+        return log
+
+class ReportDraft(db.Model):
+    """Model for storing report drafts"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(100))
+    metrics = db.Column(db.JSON)  # Store selected metrics
+    timeframe = db.Column(db.String(10))
+    last_modified = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('report_drafts', lazy=True))
+
+    @staticmethod
+    def get_or_create(user_id, name="Untitled Report"):
+        """Get existing draft or create new one"""
+        draft = ReportDraft.query.filter_by(user_id=user_id, name=name).first()
+        if not draft:
+            draft = ReportDraft(user_id=user_id, name=name)
+            db.session.add(draft)
             db.session.commit()
-        return schedule
+        return draft
+
+# Settings model event listeners
+@event.listens_for(Settings, 'after_update')
+def receive_after_update(mapper, connection, target):
+    """Clear cache entry when a setting is updated."""
+    Settings._cache.pop(target.key, None)
+
+@event.listens_for(Settings, 'after_delete')
+def receive_after_delete(mapper, connection, target):
+    """Clear cache entry when a setting is deleted."""
+    Settings._cache.pop(target.key, None)
+
+# Association Tables
+post_tags = db.Table('post_tags',
+    db.Column('post_id', db.Integer, db.ForeignKey('post.id'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
+)
 
 class Settings(db.Model):
     __tablename__ = 'settings'
@@ -516,64 +543,3 @@ class Settings(db.Model):
             db.session.rollback()
             current_app.logger.error(f"Error saving setting {key}: {str(e)}")
             return False
-
-class UserActivityLog(db.Model):
-    """Model for tracking detailed user activity"""
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    action = db.Column(db.String(50), nullable=False)  # e.g., 'report_generated', 'report_exported'
-    details = db.Column(db.JSON)  # Store additional details as JSON
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    user = db.relationship('User', backref=db.backref('activity_logs', lazy=True))
-
-    @staticmethod
-    def log_activity(user_id, action, details=None):
-        """Helper method to log user activity"""
-        log = UserActivityLog(
-            user_id=user_id,
-            action=action,
-            details=details or {}
-        )
-        db.session.add(log)
-        db.session.commit()
-        return log
-
-class ReportDraft(db.Model):
-    """Model for storing report drafts"""
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    name = db.Column(db.String(100))
-    metrics = db.Column(db.JSON)  # Store selected metrics
-    timeframe = db.Column(db.String(10))
-    last_modified = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    user = db.relationship('User', backref=db.backref('report_drafts', lazy=True))
-
-    @staticmethod
-    def get_or_create(user_id, name="Untitled Report"):
-        """Get existing draft or create new one"""
-        draft = ReportDraft.query.filter_by(user_id=user_id, name=name).first()
-        if not draft:
-            draft = ReportDraft(user_id=user_id, name=name)
-            db.session.add(draft)
-            db.session.commit()
-        return draft
-
-# Settings model event listeners
-@event.listens_for(Settings, 'after_update')
-def receive_after_update(mapper, connection, target):
-    """Clear cache entry when a setting is updated."""
-    Settings._cache.pop(target.key, None)
-
-@event.listens_for(Settings, 'after_delete')
-def receive_after_delete(mapper, connection, target):
-    """Clear cache entry when a setting is deleted."""
-    Settings._cache.pop(target.key, None)
-
-# Association Tables
-post_tags = db.Table('post_tags',
-    db.Column('post_id', db.Integer, db.ForeignKey('post.id'), primary_key=True),
-    db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
-)
