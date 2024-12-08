@@ -1391,19 +1391,44 @@ def create_role():
 @admin_required
 def upload_editor_image():
     if 'upload' not in request.files:
-        return jsonify({'error': {'message': 'No file uploaded'}}), 400
+        return jsonify({
+            'error': {
+                'message': 'No file uploaded'
+            }
+        }), 400
         
     file = request.files['upload']
     if file.filename == '':
-        return jsonify({'error': {'message': 'No file selected'}}), 400
+        return jsonify({
+            'error': {
+                'message': 'No file selected'
+            }
+        }), 400
         
     if file and allowed_file(file.filename, {'png', 'jpg', 'jpeg', 'gif'}):
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
-        url = url_for('static', filename=f'uploads/{filename}')
-        return jsonify({'url': url})
+        try:
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+            url = url_for('static', filename=f'uploads/{filename}')
+            return jsonify({
+                'uploaded': 1,
+                'fileName': filename,
+                'url': url
+            })
+        except Exception as e:
+            return jsonify({
+                'uploaded': 0,
+                'error': {
+                    'message': str(e)
+                }
+            }), 500
         
-    return jsonify({'error': {'message': 'Invalid file type'}}), 400
+    return jsonify({
+        'uploaded': 0,
+        'error': {
+            'message': 'Invalid file type'
+        }
+    }), 400
 
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and \
