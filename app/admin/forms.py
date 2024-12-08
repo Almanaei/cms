@@ -1,7 +1,8 @@
 from flask_wtf import FlaskForm
 from wtforms import (
     StringField, PasswordField, SelectField, BooleanField, 
-    FileField, TextAreaField, SelectMultipleField
+    FileField, TextAreaField, SelectMultipleField,
+    DateField, TimeField
 )
 from wtforms.validators import DataRequired, Email, Optional, URL, Length
 from flask_wtf.file import FileAllowed
@@ -26,6 +27,9 @@ class PostForm(FlaskForm):
     featured = BooleanField('Featured')
     allow_comments = BooleanField('Allow Comments', default=True)
     tags = SelectMultipleField('Tags', coerce=int)
+    schedule = BooleanField('Schedule for Later')
+    scheduled_date = DateField('Scheduled Date', validators=[Optional()])
+    scheduled_time = TimeField('Scheduled Time', validators=[Optional()])
 
 class UserForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
