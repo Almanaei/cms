@@ -1046,7 +1046,7 @@ def database_backups():
     except Exception as e:
         current_app.logger.error(f'Error accessing database backups: {str(e)}')
         flash('Error accessing database backups', 'error')
-        return redirect(url_for('admin.index'))
+        return redirect(url_for('admin.index')), 500
 
 @bp.route('/database-backups/create', methods=['POST'])
 @login_required
