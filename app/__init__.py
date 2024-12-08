@@ -10,7 +10,7 @@ import os
 import sys
 import traceback
 from app.extensions import (
-    db, migrate, login, mail, moment, csrf, cache, limiter
+    db, migrate, login, csrf
 )
 
 def create_app(test_config=None):
@@ -25,11 +25,7 @@ def create_app(test_config=None):
     db.init_app(app)
     migrate.init_app(app, db)
     login.init_app(app)
-    mail.init_app(app)
-    moment.init_app(app)
     csrf.init_app(app)
-    cache.init_app(app)
-    limiter.init_app(app)
 
     # Create instance directory if it doesn't exist
     if not os.path.exists(app.instance_path):
