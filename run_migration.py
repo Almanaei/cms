@@ -1,6 +1,6 @@
 from flask.cli import FlaskGroup
 from app import create_app, db
-from flask_migrate import Migrate, upgrade, stamp
+from flask_migrate import Migrate, upgrade, stamp, init, revision
 import shutil
 import os
 
@@ -18,13 +18,11 @@ if __name__ == '__main__':
                 print("Migrations directory removed.")
             
             # Initialize new migrations directory
-            from flask_migrate import init
             init()
             print("Initialized new migrations directory.")
             
             # Create initial migration
-            from flask_migrate import migrate as migrate_cmd
-            migrate_cmd("Initial migration")
+            revision(autogenerate=True, message="Initial migration")
             print("Created initial migration.")
             
             # Upgrade to the latest
