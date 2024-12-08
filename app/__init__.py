@@ -14,10 +14,15 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 csrf = CSRFProtect()
 
-def create_app(config_class=Config):
-    app = Flask(__name__)
-    app.config.from_object(config_class)
+def create_app(test_config=None):
+    app = Flask(__name__, instance_relative_config=True)
+    
+    if test_config is None:
+        app.config.from_object('config.Config')
+    else:
+        app.config.update(test_config)
 
+    # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
     csrf.init_app(app)
@@ -115,6 +120,37 @@ def create_app(config_class=Config):
     except Exception as e:
         print(f"Error setting up logging: {str(e)}\n{traceback.format_exc()}", file=sys.stderr)
 
+    # Register blueprints
+    from app.main import bp as main_bp
+    app.register_blueprint(main_bp)
+
+    from app.auth import bp as auth_bp
+    app.register_blueprint(auth_bp)
+
+    from app.admin import bp as admin_bp
+    app.register_blueprint(admin_bp, url_prefix='/admin')
+
+    from app.media import bp as media_bp
+    app.register_blueprint(media_bp)
+
+    # Import models to ensure they are known to Flask-Migrate
+    from app import models
+
+    @app.context_processor
+    def utility_processor():
+        from app.models import Settings
+        return {
+            'get_setting': Settings.get
+        }
+
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message_category = 'info'
+
+    from app.cli import init_roles_command, create_admin_command, settings_group
+    app.cli.add_command(init_roles_command)
+    app.cli.add_command(create_admin_command)
+    app.cli.add_command(settings_group)
+
     # Add datetime to Jinja2 environment
     app.jinja_env.globals.update(now=datetime.utcnow)
 
@@ -130,35 +166,4 @@ def create_app(config_class=Config):
             return ''
         return value.strftime(format)
 
-    # Register template context processors
-    @app.context_processor
-    def utility_processor():
-        from app.models import Settings
-        return {
-            'get_setting': Settings.get
-        }
-
-    login_manager.login_view = 'auth.login'
-    login_manager.login_message_category = 'info'
-
-    from app.auth import bp as auth_bp
-    app.register_blueprint(auth_bp)
-
-    from app.main import bp as main_bp
-    app.register_blueprint(main_bp)
-
-    from app.admin import bp as admin_bp
-    app.register_blueprint(admin_bp, url_prefix='/admin')
-
-    # Register blueprints
-    from .admin import media
-    app.register_blueprint(media.bp, url_prefix='/admin')
-
-    from app.cli import init_roles_command, create_admin_command, settings_group
-    app.cli.add_command(init_roles_command)
-    app.cli.add_command(create_admin_command)
-    app.cli.add_command(settings_group)
-
     return app
-
-from app import models
