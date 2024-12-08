@@ -7,5 +7,6 @@ migrate = Migrate(app, db)
 
 if __name__ == '__main__':
     with app.app_context():
-        upgrade()
+        # Explicitly upgrade to all heads
+        upgrade(revision='heads')
         print("Database migration completed successfully!")
