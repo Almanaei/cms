@@ -5,7 +5,6 @@ from flask import render_template, flash, redirect, url_for, request, current_ap
 from flask_login import login_required, current_user
 from app import db, csrf
 from app.admin import bp
-from app.admin.forms import SettingsForm
 from app.models import Post, Category, User, Settings, Role, Backup
 from app.extensions import db, csrf
 from app.decorators import admin_required, permission_required
@@ -1372,3 +1371,10 @@ def upload_editor_image():
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
+@bp.route('/database-backups')
+@login_required
+@admin_required
+def database_backups():
+    backups = Backup.query.order_by(Backup.created_at.desc()).all()
+    return render_template('admin/database_backups.html', backups=backups)

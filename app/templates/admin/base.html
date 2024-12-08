@@ -123,14 +123,8 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ 'active' if 'admin.backups' in request.endpoint }}" href="{{ url_for('admin.backups') }}">
-                                <i class="bi bi-cloud-arrow-up"></i>
-                                <span>Backups</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('admin.database_backups') }}">
-                                <i class="bi bi-archive me-2"></i>
+                                <i class="bi bi-cloud-arrow-up"></i>
                                 Database Backups
                             </a>
                         </li>
