@@ -139,15 +139,26 @@ def categories():
 @admin_required
 def create_category():
     if request.method == 'POST':
-        category = Category(
-            name=request.form['name'],
-            slug=request.form['slug'],
-            description=request.form.get('description', '')
-        )
-        db.session.add(category)
-        db.session.commit()
-        flash('Category created successfully!', 'success')
-        return redirect(url_for('admin.categories'))
+        try:
+            # Check if a category with this name already exists
+            existing_category = Category.query.filter_by(name=request.form['name']).first()
+            if existing_category:
+                flash('A category with this name already exists.', 'error')
+                return render_template('admin/create_category.html')
+
+            category = Category(
+                name=request.form['name'],
+                slug=request.form['slug'],
+                description=request.form.get('description', '')
+            )
+            db.session.add(category)
+            db.session.commit()
+            flash('Category created successfully!', 'success')
+            return redirect(url_for('admin.categories'))
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred while creating the category.', 'error')
+            return render_template('admin/create_category.html')
     return render_template('admin/create_category.html')
 
 @bp.route('/category/<int:id>/edit', methods=['GET', 'POST'])
@@ -156,12 +167,26 @@ def create_category():
 def edit_category(id):
     category = Category.query.get_or_404(id)
     if request.method == 'POST':
-        category.name = request.form['name']
-        category.slug = request.form['slug']
-        category.description = request.form.get('description', '')
-        db.session.commit()
-        flash('Category updated successfully!', 'success')
-        return redirect(url_for('admin.categories'))
+        try:
+            # Check if another category with this name exists
+            existing_category = Category.query.filter(
+                Category.name == request.form['name'],
+                Category.id != id
+            ).first()
+            if existing_category:
+                flash('A category with this name already exists.', 'error')
+                return render_template('admin/edit_category.html', category=category)
+
+            category.name = request.form['name']
+            category.slug = request.form['slug']
+            category.description = request.form.get('description', '')
+            db.session.commit()
+            flash('Category updated successfully!', 'success')
+            return redirect(url_for('admin.categories'))
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred while updating the category.', 'error')
+            return render_template('admin/edit_category.html', category=category)
     return render_template('admin/edit_category.html', category=category)
 
 @bp.route('/category/<int:id>/delete', methods=['POST'])
