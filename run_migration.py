@@ -22,13 +22,13 @@ def init_db():
         print("Database tables created successfully.")
 
         # Now set up migrations
-        from flask_migrate import init, migrate
+        from flask_migrate import init, revision
         
         print("Initializing migrations...")
         init()
         
         print("Creating initial migration...")
-        migrate("Initial migration")
+        revision(autogenerate=True, message="Initial migration")
         
         print("Database initialization complete!")
 
