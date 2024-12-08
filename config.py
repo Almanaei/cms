@@ -10,9 +10,19 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key-here'
     DEBUG = True  # Enable debug mode
     
-    # Database Config
-    SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI') or \
-        'sqlite:///' + os.path.join(basedir, 'app.db')
+    # Database Config for cPanel
+    if os.environ.get('CPANEL_ENV') == 'true':
+        USER = os.environ.get('USER', 'gdcdksdd')
+        HOME = f'/home/{USER}'
+        DB_PATH = os.path.join(HOME, 'cms', 'instance')
+        if not os.path.exists(DB_PATH):
+            os.makedirs(DB_PATH, mode=0o755, exist_ok=True)
+        SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI') or \
+            'sqlite:///' + os.path.join(DB_PATH, 'app.db')
+    else:
+        SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI') or \
+            'sqlite:///' + os.path.join(basedir, 'instance', 'app.db')
+            
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # File Upload Config
@@ -23,12 +33,10 @@ class Config:
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
     
-    # Database Config for cPanel
+    # Update paths for cPanel environment
     if os.environ.get('CPANEL_ENV') == 'true':
         USER = os.environ.get('USER', 'gdcdksdd')
         HOME = f'/home/{USER}'
-        SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI') or \
-            'sqlite:///' + os.path.join(HOME, 'cms', 'app.db')
         UPLOAD_FOLDER = os.path.join(HOME, 'cms', 'app', 'static', 'uploads')
         BACKUP_DIR = os.path.join(HOME, 'cms', 'app', 'static', 'backups')
         
@@ -36,21 +44,34 @@ class Config:
     @classmethod
     def init_app(cls, app):
         # Create necessary directories
-        for directory in [cls.UPLOAD_FOLDER, cls.BACKUP_DIR]:
+        dirs_to_create = [
+            cls.UPLOAD_FOLDER,
+            cls.BACKUP_DIR,
+            os.path.dirname(cls.SQLALCHEMY_DATABASE_URI.replace('sqlite:///', '')),
+            os.path.join(os.path.dirname(app.instance_path), 'logs')
+        ]
+        
+        for directory in dirs_to_create:
             if not os.path.exists(directory):
                 os.makedirs(directory, mode=0o755, exist_ok=True)
+                print(f"Created directory: {directory}")
+        
+        # Create empty database file if it doesn't exist
+        db_path = cls.SQLALCHEMY_DATABASE_URI.replace('sqlite:///', '')
+        if not os.path.exists(db_path):
+            try:
+                open(db_path, 'a').close()
+                os.chmod(db_path, 0o664)
+                print(f"Created database file: {db_path}")
+            except Exception as e:
+                print(f"Error creating database file: {e}")
                 
-        # Ensure log directory exists
-        log_dir = os.path.join(os.path.dirname(app.instance_path), 'logs')
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir, mode=0o755, exist_ok=True)
-            
         # Set up logging
         if not app.debug and not app.testing:
             from logging.handlers import RotatingFileHandler
             import logging
             
-            log_file = os.path.join(log_dir, 'cms.log')
+            log_file = os.path.join(os.path.dirname(app.instance_path), 'logs', 'cms.log')
             file_handler = RotatingFileHandler(log_file, maxBytes=10240, backupCount=10)
             file_handler.setFormatter(logging.Formatter(
                 '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
