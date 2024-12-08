@@ -3,45 +3,12 @@ import shutil
 from datetime import datetime
 from flask import render_template, flash, redirect, url_for, request, current_app, send_file, jsonify
 from flask_login import login_required, current_user
-from app import db
+from app import db, csrf
 from app.admin import bp
 from app.admin.forms import SettingsForm
-from app.models import User, Role, Settings, Backup
+from app.models import User, Role, Settings, Backup, BackupSchedule, Post, Category
 from app.decorators import admin_required
 from werkzeug.utils import secure_filename
-
-from flask import render_template, redirect, url_for, flash, request, current_app, jsonify, send_file
-from flask_login import login_required, current_user
-from werkzeug.utils import secure_filename
-from app import db
-from app.admin import bp
-from app.models import Post, Category, User, MediaItem, Tag, Role, Comment, UserActivity, Settings, BackupSchedule, Backup, PageView
-from functools import wraps
-from datetime import datetime
-import json
-import shutil
-from app.forms import PostForm, UserForm  # Import UserForm
-from app.utils.activity_logger import log_activity
-
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
-            flash('You need to be an admin to access this page.', 'danger')
-            return redirect(url_for('main.index'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-def permission_required(permission):
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            if not current_user.can(permission):
-                flash('You do not have permission to access this page.', 'danger')
-                return redirect(url_for('admin.index'))
-            return f(*args, **kwargs)
-        return decorated_function
-    return decorator
 
 @bp.route('/')
 @login_required
@@ -1074,7 +1041,7 @@ def database_backups():
     """View database backups."""
     try:
         backups = Backup.query.order_by(Backup.created_at.desc()).all()
-        schedule = BackupSchedule.get_schedule()
+        schedule = BackupSchedule.get_schedule() if hasattr(BackupSchedule, 'get_schedule') else None
         return render_template('admin/database_backups.html', backups=backups, schedule=schedule)
     except Exception as e:
         current_app.logger.error(f'Error accessing database backups: {str(e)}')
@@ -1084,6 +1051,7 @@ def database_backups():
 @bp.route('/database-backups/create', methods=['POST'])
 @login_required
 @admin_required
+@csrf.exempt
 def create_database_backup():
     """Create a new database backup."""
     try:
@@ -1091,6 +1059,10 @@ def create_database_backup():
         backup_dir = current_app.config.get('BACKUP_DIR')
         if not backup_dir:
             raise ValueError('Backup directory not configured')
+            
+        # Convert relative path to absolute if necessary
+        if not os.path.isabs(backup_dir):
+            backup_dir = os.path.join(current_app.root_path, '..', backup_dir)
             
         if not os.path.exists(backup_dir):
             os.makedirs(backup_dir, exist_ok=True)
@@ -1145,7 +1117,16 @@ def download_database_backup(id):
     """Download a backup file."""
     try:
         backup = Backup.query.get_or_404(id)
-        backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
+        backup_dir = current_app.config.get('BACKUP_DIR')
+        
+        if not backup_dir:
+            raise ValueError('Backup directory not configured')
+            
+        # Convert relative path to absolute if necessary
+        if not os.path.isabs(backup_dir):
+            backup_dir = os.path.join(current_app.root_path, '..', backup_dir)
+            
+        backup_path = os.path.join(backup_dir, backup.filename)
         
         if not os.path.exists(backup_path):
             flash('Backup file not found.', 'error')
@@ -1169,7 +1150,16 @@ def delete_database_backup(id):
     """Delete a backup."""
     try:
         backup = Backup.query.get_or_404(id)
-        backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
+        backup_dir = current_app.config.get('BACKUP_DIR')
+        
+        if not backup_dir:
+            raise ValueError('Backup directory not configured')
+            
+        # Convert relative path to absolute if necessary
+        if not os.path.isabs(backup_dir):
+            backup_dir = os.path.join(current_app.root_path, '..', backup_dir)
+            
+        backup_path = os.path.join(backup_dir, backup.filename)
         
         # Delete file if exists
         if os.path.exists(backup_path):
@@ -1199,7 +1189,16 @@ def restore_database_backup(id):
     """Restore a database backup."""
     try:
         backup = Backup.query.get_or_404(id)
-        backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
+        backup_dir = current_app.config.get('BACKUP_DIR')
+        
+        if not backup_dir:
+            raise ValueError('Backup directory not configured')
+            
+        # Convert relative path to absolute if necessary
+        if not os.path.isabs(backup_dir):
+            backup_dir = os.path.join(current_app.root_path, '..', backup_dir)
+            
+        backup_path = os.path.join(backup_dir, backup.filename)
         
         if not os.path.exists(backup_path):
             raise FileNotFoundError('Backup file not found')

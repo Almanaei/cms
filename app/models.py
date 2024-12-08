@@ -404,9 +404,9 @@ class Backup(db.Model):
             'filename': self.filename,
             'size': self.size,
             'description': self.description,
-            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
-        
+    
     @property
     def filepath(self):
         """Get the full path to the backup file."""

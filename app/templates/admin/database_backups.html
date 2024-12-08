@@ -92,7 +92,8 @@ function createBackup() {
     fetch('{{ url_for("admin.create_database_backup") }}', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
         }
     })
     .then(response => response.json())
@@ -117,7 +118,8 @@ function deleteBackup(id) {
         fetch(`{{ url_for("admin.delete_database_backup", id=0) }}`.replace('0', id), {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
             }
         })
         .then(response => response.json())
