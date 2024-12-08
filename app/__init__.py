@@ -22,6 +22,16 @@ def create_app(config_class=Config):
     login_manager.init_app(app)
     csrf.init_app(app)
 
+    # Create instance directory if it doesn't exist
+    if not os.path.exists(app.instance_path):
+        os.makedirs(app.instance_path)
+        
+    # Create backup directory if it doesn't exist
+    backup_dir = os.path.join(app.instance_path, 'backups')
+    if not os.path.exists(backup_dir):
+        os.makedirs(backup_dir)
+    app.config['BACKUP_DIR'] = backup_dir
+
     # Ensure backup directory exists
     backup_dir = app.config.get('BACKUP_DIR')
     if backup_dir and not os.path.exists(backup_dir):

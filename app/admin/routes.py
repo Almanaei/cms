@@ -1061,24 +1061,27 @@ def import_settings():
 @admin_required
 def database_backups():
     """View database backups."""
-    backups = Backup.query.order_by(Backup.created_at.desc()).all()
-    return render_template('admin/database_backups.html', backups=backups)
+    try:
+        backups = Backup.query.order_by(Backup.created_at.desc()).all()
+        return render_template('admin/database_backups.html', backups=backups)
+    except Exception as e:
+        current_app.logger.error(f'Error accessing database backups: {str(e)}')
+        flash('Error accessing database backups', 'error')
+        return redirect(url_for('admin.index'))
 
 @bp.route('/database-backups/create', methods=['POST'])
 @login_required
 @admin_required
 def create_database_backup():
     """Create a new database backup."""
-    import shutil
-    from datetime import datetime
-    import os
-    
     try:
         # Ensure backup directory exists
-        backup_dir = current_app.config['BACKUP_DIR']
+        backup_dir = current_app.config.get('BACKUP_DIR')
+        if not backup_dir:
+            raise ValueError('Backup directory not configured')
+            
         if not os.path.exists(backup_dir):
             os.makedirs(backup_dir, exist_ok=True)
-            os.chmod(backup_dir, 0o755)
         
         # Create backup filename
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
@@ -1088,15 +1091,15 @@ def create_database_backup():
         if os.environ.get('CPANEL_ENV') == 'true':
             db_path = os.path.join('/home', os.environ.get('USER', ''), 'app.db')
         else:
-            db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
-            if not db_path.startswith('/'):
-                db_path = os.path.join(current_app.root_path, '..', db_path)
+            db_path = os.path.join(current_app.root_path, '..', 'app.db')
+        
+        if not os.path.exists(db_path):
+            raise FileNotFoundError(f'Database file not found at {db_path}')
         
         backup_path = os.path.join(backup_dir, filename)
         
         # Create backup file
         shutil.copy2(db_path, backup_path)
-        os.chmod(backup_path, 0o644)
         
         # Create backup record
         backup = Backup(
@@ -1115,6 +1118,7 @@ def create_database_backup():
         
     except Exception as e:
         current_app.logger.error(f'Backup creation failed: {str(e)}')
+        db.session.rollback()
         return jsonify({
             'status': 'error',
             'message': f'Failed to create backup: {str(e)}'
@@ -1168,6 +1172,7 @@ def delete_database_backup(id):
         
     except Exception as e:
         current_app.logger.error(f'Error deleting backup: {str(e)}')
+        db.session.rollback()
         return jsonify({
             'status': 'error',
             'message': f'Failed to delete backup: {str(e)}'
