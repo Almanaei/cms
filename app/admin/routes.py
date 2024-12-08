@@ -6,7 +6,8 @@ from flask_login import login_required, current_user
 from app import db, csrf
 from app.admin import bp
 from app.admin.forms import SettingsForm
-from app.models import User, Role, Settings, Backup, BackupSchedule, Post, Category
+from app.models import Post, Category, User, Settings, Role, Backup
+from app.extensions import db, csrf
 from app.decorators import admin_required
 from werkzeug.utils import secure_filename
 
@@ -1041,12 +1042,11 @@ def database_backups():
     """View database backups."""
     try:
         backups = Backup.query.order_by(Backup.created_at.desc()).all()
-        schedule = BackupSchedule.get_schedule() if hasattr(BackupSchedule, 'get_schedule') else None
-        return render_template('admin/database_backups.html', backups=backups, schedule=schedule)
+        return render_template('admin/database_backups.html', backups=backups)
     except Exception as e:
-        current_app.logger.error(f'Error accessing database backups: {str(e)}')
+        current_app.logger.error(f"Error accessing database backups: {str(e)}")
         flash('Error accessing database backups', 'error')
-        return redirect(url_for('admin.index')), 500
+        return render_template('admin/database_backups.html', backups=[]), 500
 
 @bp.route('/database-backups/create', methods=['POST'])
 @login_required
@@ -1055,19 +1055,13 @@ def database_backups():
 def create_database_backup():
     """Create a new database backup."""
     try:
-        # Ensure backup directory exists
-        backup_dir = current_app.config.get('BACKUP_DIR')
-        if not backup_dir:
-            raise ValueError('Backup directory not configured')
-            
+        # Get backup directory from config, defaulting to 'backups' in instance folder
+        backup_dir = current_app.config.get('BACKUP_DIR', os.path.join(current_app.instance_path, 'backups'))
+        
         # Convert relative path to absolute if necessary
         if not os.path.isabs(backup_dir):
             backup_dir = os.path.join(current_app.root_path, '..', backup_dir)
             
-        if not os.path.exists(backup_dir):
-            os.makedirs(backup_dir, exist_ok=True)
-            os.chmod(backup_dir, 0o755)  # Set directory permissions to 755
-        
         # Create backup filename
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
         filename = f"backup_{timestamp}.db"
@@ -1117,7 +1111,7 @@ def download_database_backup(id):
     """Download a backup file."""
     try:
         backup = Backup.query.get_or_404(id)
-        backup_dir = current_app.config.get('BACKUP_DIR')
+        backup_dir = current_app.config.get('BACKUP_DIR', os.path.join(current_app.instance_path, 'backups'))
         
         if not backup_dir:
             raise ValueError('Backup directory not configured')
@@ -1150,7 +1144,7 @@ def delete_database_backup(id):
     """Delete a backup."""
     try:
         backup = Backup.query.get_or_404(id)
-        backup_dir = current_app.config.get('BACKUP_DIR')
+        backup_dir = current_app.config.get('BACKUP_DIR', os.path.join(current_app.instance_path, 'backups'))
         
         if not backup_dir:
             raise ValueError('Backup directory not configured')
@@ -1189,7 +1183,7 @@ def restore_database_backup(id):
     """Restore a database backup."""
     try:
         backup = Backup.query.get_or_404(id)
-        backup_dir = current_app.config.get('BACKUP_DIR')
+        backup_dir = current_app.config.get('BACKUP_DIR', os.path.join(current_app.instance_path, 'backups'))
         
         if not backup_dir:
             raise ValueError('Backup directory not configured')
@@ -1274,7 +1268,7 @@ def cleanup_old_backups():
         
         if len(backups) > max_backups:
             for backup in backups[max_backups:]:
-                backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
+                backup_path = os.path.join(current_app.config.get('BACKUP_DIR', os.path.join(current_app.instance_path, 'backups')), backup.filename)
                 if os.path.exists(backup_path):
                     os.remove(backup_path)
                 db.session.delete(backup)
