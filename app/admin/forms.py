@@ -9,7 +9,7 @@ from flask_wtf.file import FileAllowed
 class PostForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired(), Length(max=200)])
     content = TextAreaField('Content', validators=[DataRequired()])
-    excerpt = TextAreaField('Excerpt', validators=[Optional(), Length(max=500)])
+    summary = TextAreaField('Summary', validators=[Optional(), Length(max=500)])
     category_id = SelectField('Category', validators=[DataRequired()], coerce=int)
     featured_image = FileField('Featured Image', validators=[
         Optional(),
