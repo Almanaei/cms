@@ -9,10 +9,9 @@ from logging.handlers import RotatingFileHandler
 import os
 import sys
 import traceback
-
-db = SQLAlchemy()
-login_manager = LoginManager()
-csrf = CSRFProtect()
+from app.extensions import (
+    db, migrate, login, mail, moment, csrf, cache, limiter
+)
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -24,8 +23,13 @@ def create_app(test_config=None):
 
     # Initialize extensions
     db.init_app(app)
-    login_manager.init_app(app)
+    migrate.init_app(app, db)
+    login.init_app(app)
+    mail.init_app(app)
+    moment.init_app(app)
     csrf.init_app(app)
+    cache.init_app(app)
+    limiter.init_app(app)
 
     # Create instance directory if it doesn't exist
     if not os.path.exists(app.instance_path):
