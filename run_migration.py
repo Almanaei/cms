@@ -16,19 +16,24 @@ def init_db():
         print("Migrations directory removed.")
 
     with app.app_context():
+        # Drop all tables if they exist
+        print("Dropping all existing tables...")
+        db.drop_all()
+        print("All tables dropped.")
+        
         # Create all tables
         print("Creating database tables...")
         db.create_all()
         print("Database tables created successfully.")
 
         # Now set up migrations
-        from flask_migrate import init, revision
+        from flask_migrate import init, stamp
         
         print("Initializing migrations...")
         init()
         
-        print("Creating initial migration...")
-        revision(autogenerate=True, message="Initial migration")
+        print("Stamping database with initial state...")
+        stamp('head')
         
         print("Database initialization complete!")
 
