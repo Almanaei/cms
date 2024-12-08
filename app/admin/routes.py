@@ -143,6 +143,8 @@ def create_category():
             # Check if a category with this name already exists
             existing_category = Category.query.filter_by(name=request.form['name']).first()
             if existing_category:
+                if request.is_xhr or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'error': 'A category with this name already exists.'}), 400
                 flash('A category with this name already exists.', 'error')
                 return render_template('admin/create_category.html')
 
@@ -153,12 +155,29 @@ def create_category():
             )
             db.session.add(category)
             db.session.commit()
+            
+            if request.is_xhr or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': True,
+                    'message': 'Category created successfully!',
+                    'category': {
+                        'id': category.id,
+                        'name': category.name,
+                        'slug': category.slug,
+                        'description': category.description
+                    }
+                })
+                
             flash('Category created successfully!', 'success')
             return redirect(url_for('admin.categories'))
+            
         except Exception as e:
             db.session.rollback()
+            if request.is_xhr or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': str(e)}), 500
             flash('An error occurred while creating the category.', 'error')
             return render_template('admin/create_category.html')
+            
     return render_template('admin/create_category.html')
 
 @bp.route('/category/<int:id>/edit', methods=['GET', 'POST'])
