@@ -386,8 +386,7 @@ class MediaItem(db.Model):
 
 class Backup(db.Model):
     """Model for database backups."""
-    __tablename__ = 'backups'
-    
+    __tablename__ = 'database_backup'
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(255), nullable=False)
     size = db.Column(db.Integer, nullable=False)  # Size in bytes
