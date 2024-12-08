@@ -15,7 +15,7 @@ class PostForm(FlaskForm):
         Optional(),
         FileAllowed(['jpg', 'jpeg', 'png', 'gif'], 'Images only!')
     ])
-    status = SelectField('Status', choices=[
+    published = SelectField('Status', choices=[
         ('draft', 'Draft'),
         ('published', 'Published'),
         ('archived', 'Archived')
