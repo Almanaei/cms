@@ -25,12 +25,13 @@ if __name__ == '__main__':
             revision(autogenerate=True, message="Initial migration")
             print("Created initial migration.")
             
-            # Upgrade to the latest
-            try:
-                upgrade(revision='head')
-                print("Successfully upgraded database to latest revision")
-            except Exception as e:
-                print(f"Error during upgrade: {e}")
+            # Create all tables directly first
+            db.create_all()
+            print("Created all database tables.")
+            
+            # Mark the database as stamped at the current revision
+            stamp()
+            print("Database stamped at current revision.")
                 
     except Exception as e:
         print(f"Error: {e}")
