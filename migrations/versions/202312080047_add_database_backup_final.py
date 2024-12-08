@@ -1,7 +1,7 @@
 """Add database backup table final
 
 Revision ID: 202312080047
-Revises: 7c91fc53c292
+Revises: da6d3a183b9a
 Create Date: 2023-12-08 00:47:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '202312080047'
-down_revision = '7c91fc53c292'
+down_revision = 'da6d3a183b9a'
 branch_labels = None
 depends_on = None
 
