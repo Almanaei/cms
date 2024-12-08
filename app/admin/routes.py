@@ -1155,7 +1155,7 @@ def delete_database_backup(id):
             
         backup_path = os.path.join(backup_dir, backup.filename)
         
-        # Delete file if exists
+        # Delete file if it exists
         if os.path.exists(backup_path):
             os.remove(backup_path)
         
