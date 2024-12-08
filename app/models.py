@@ -384,6 +384,26 @@ class MediaItem(db.Model):
             return url_for('media.download_media', id=self.id, thumbnail=True)
         return None
 
+class Backup(db.Model):
+    """Model for database backups."""
+    __tablename__ = 'backups'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), nullable=False)
+    size = db.Column(db.Integer, nullable=False)  # Size in bytes
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        """Convert backup to dictionary."""
+        return {
+            'id': self.id,
+            'filename': self.filename,
+            'size': self.size,
+            'description': self.description,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        }
+
 class DatabaseBackup(db.Model):
     """Model for database backups."""
     id = db.Column(db.Integer, primary_key=True)
@@ -425,27 +445,6 @@ class BackupSchedule(db.Model):
             db.session.add(schedule)
             db.session.commit()
         return schedule
-
-class Backup(db.Model):
-    """Model for database backups."""
-    id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    completed_at = db.Column(db.DateTime)
-    type = db.Column(db.String(50))  # manual, scheduled
-    status = db.Column(db.String(50), default='pending')  # pending, completed, failed
-    size = db.Column(db.Integer)  # Size in bytes
-    note = db.Column(db.Text)
-    
-    @property
-    def filepath(self):
-        """Get the full path to the backup file."""
-        return os.path.join(current_app.config['BACKUP_DIR'], self.filename)
-    
-    def delete_file(self):
-        """Delete the backup file from disk."""
-        if os.path.exists(self.filepath):
-            os.remove(self.filepath)
 
 class Settings(db.Model):
     __tablename__ = 'settings'

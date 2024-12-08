@@ -1061,7 +1061,7 @@ def import_settings():
 @admin_required
 def database_backups():
     """View database backups."""
-    backups = DatabaseBackup.query.order_by(DatabaseBackup.created_at.desc()).all()
+    backups = Backup.query.order_by(Backup.created_at.desc()).all()
     return render_template('admin/database_backups.html', backups=backups)
 
 @bp.route('/database-backups/create', methods=['POST'])
@@ -1099,7 +1099,7 @@ def create_database_backup():
         os.chmod(backup_path, 0o644)
         
         # Create backup record
-        backup = DatabaseBackup(
+        backup = Backup(
             filename=filename,
             size=os.path.getsize(backup_path),
             description=f"Manual backup created on {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
@@ -1126,7 +1126,7 @@ def create_database_backup():
 def download_database_backup(id):
     """Download a backup file."""
     try:
-        backup = DatabaseBackup.query.get_or_404(id)
+        backup = Backup.query.get_or_404(id)
         backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
         
         if not os.path.exists(backup_path):
@@ -1150,7 +1150,7 @@ def download_database_backup(id):
 def delete_database_backup(id):
     """Delete a backup."""
     try:
-        backup = DatabaseBackup.query.get_or_404(id)
+        backup = Backup.query.get_or_404(id)
         backup_path = os.path.join(current_app.config['BACKUP_DIR'], backup.filename)
         
         # Delete file if exists
