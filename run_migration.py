@@ -10,7 +10,7 @@ if __name__ == '__main__':
         with app.app_context():
             # First try to stamp the database with our merge migration
             try:
-                stamp(revision='202312082143_merge_heads')
+                stamp(revision='202312082143')
                 print("Successfully stamped database with merge migration")
             except Exception as e:
                 print(f"Warning during stamp: {e}")
@@ -25,7 +25,7 @@ if __name__ == '__main__':
                     print("Continuing with remaining migrations...")
                     # Try to stamp with the latest migration to skip the table creation
                     try:
-                        stamp(revision='202312082146_stamp_existing_tables')
+                        stamp(revision='202312082146')
                         print("Successfully stamped database with latest migration")
                         upgrade(revision='heads')
                     except Exception as inner_e:
